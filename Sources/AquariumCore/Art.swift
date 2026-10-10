@@ -240,15 +240,16 @@ public enum Art {
         legendaryKinds[((kind % legendaryKinds.count) + legendaryKinds.count) % legendaryKinds.count].glow
     }
 
-    // A big koi, 16x6, facing right. Chars: o body, b belly, p patch,
-    // f fin/tail, e eye, . transparent.
+    // A koi, 18x6, facing right — elongated body, flowing tail, dorsal fin,
+    // and barbels at the mouth. Chars: o body, b belly, p patch, f fin/tail,
+    // e eye, . transparent.
     static let legendaryArt = """
-.....oooooo.....
-...oooooooooo...
-.ffooooppoooeo..
-.ffbbbbppbbbbb..
-...bbbbbbbbbb...
-.....bbbbbb.....
+........ffff......
+...fooooooooooo...
+.ff.ooooopppooooeo
+.ff.bbbbbpppbbbb..
+...fbbbbbbbbbbff..
+......bbbbbb......
 """
 
     private static func normalized(_ index: Int) -> Int {
@@ -339,7 +340,35 @@ ffoooo
         if kind == 0 {
             return PixelSprite(art: snailShape, ["o": snailShell, "b": snailBody])
         }
+        if kind == 2 {
+            return PixelSprite(art: starfishShape, ["s": starfishBody, "S": starfishHi])
+        }
         return PixelSprite(art: shrimpShape, ["o": shrimpBody, "f": shrimpFin])
+    }
+
+    // MARK: - Extra creatures & decor
+
+    static let starfishShape = """
+..s..
+.sSs.
+sssss
+.s.s.
+.s.s.
+"""
+
+    static let anemoneShape = """
+.t.t.t.
+ttttttt
+.ttttt.
+..ttt..
+"""
+
+    public static let starfishBody = RGBA(hex: 0xE8804A)
+    public static let starfishHi = RGBA(hex: 0xFFC08A)
+
+    /// A waving anemone (kind 5), tinted from the coral palette.
+    public static func anemoneSprite(_ variant: Int) -> PixelSprite {
+        coralSprite(anemoneShape, variant)
     }
 
     public static let snailShell = RGBA(hex: 0x9B7B45)
@@ -403,19 +432,20 @@ ccwccc
     ]
 
     /// Background piece. kind: 0 big rock, 1 small rock, 2 branch coral,
-    /// 3 fan coral, 4 brain coral.
+    /// 3 fan coral, 4 brain coral, 5 anemone.
     public static func decorSprite(kind: Int, variant: Int) -> PixelSprite {
         switch kind {
         case 0: return PixelSprite(art: bigRockShape, ["r": rockDark, "R": rockLight])
         case 1: return PixelSprite(art: smallRockShape, ["r": rockDark, "R": rockLight])
         case 2: return coralSprite(branchCoralShape, variant)
         case 3: return coralSprite(fanCoralShape, variant)
-        default: return coralSprite(brainCoralShape, variant)
+        case 4: return coralSprite(brainCoralShape, variant)
+        default: return coralSprite(anemoneShape, variant)
         }
     }
 
     private static func coralSprite(_ art: String, _ variant: Int) -> PixelSprite {
         let base = coralPalette[((variant % coralPalette.count) + coralPalette.count) % coralPalette.count]
-        return PixelSprite(art: art, ["c": base, "w": base.mixed(with: RGBA(hex: 0xFFFFFF), 0.45)])
+        return PixelSprite(art: art, ["c": base, "t": base, "w": base.mixed(with: RGBA(hex: 0xFFFFFF), 0.45)])
     }
 }

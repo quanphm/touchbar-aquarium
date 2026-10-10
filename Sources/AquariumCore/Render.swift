@@ -93,16 +93,18 @@ public enum Aquarium {
         let offsets = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         for d in sim.decor {
             let sprite = Art.decorSprite(kind: d.kind, variant: d.variant)
+            // Corals and anemones sway gently in the current.
+            let sway = d.kind >= 2 ? Int((sin(sim.time * 1.1 + Double(d.x) * 0.13) * 0.7).rounded()) : 0
             let y = floorY - sprite.height
             if d.kind >= 2 {
                 // Corals glow softly, bioluminescent-style.
                 let base = Art.coralPalette[((d.variant % Art.coralPalette.count) + Art.coralPalette.count) % Art.coralPalette.count]
                 let glow = base.withAlpha(42)
                 for (dx, dy) in offsets {
-                    sprite.drawSilhouette(into: &frame, x: d.x + dx, y: y + dy, color: glow)
+                    sprite.drawSilhouette(into: &frame, x: d.x + dx + sway, y: y + dy, color: glow)
                 }
             }
-            sprite.draw(into: &frame, x: d.x, y: y)
+            sprite.draw(into: &frame, x: d.x + sway, y: y)
         }
     }
 

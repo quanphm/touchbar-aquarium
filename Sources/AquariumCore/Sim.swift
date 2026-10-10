@@ -6,7 +6,7 @@ public struct TankConfig {
     public var width: Int = 360
     public var height: Int = 10
     public var floorHeight: Int = 2
-    public var fishCount: Int = 6
+    public var fishCount: Int = 7
     /// Whether the tank includes its legendary resident. On by default.
     public var legendaryChance: Double = 1.0
     public var seed: UInt64 = 0xA9E1
@@ -217,7 +217,7 @@ public struct AquariumSim {
     private mutating func scatterFish() {
         // The headline cast, then fill the remaining slots with random
         // schoolers so the "3 other fishes" vary from tank to tank.
-        var roster: [Int] = [9, 8, 10]   // clownfish, pufferfish, jellyfish
+        var roster: [Int] = [9, 8, 10, 10]   // clownfish, pufferfish, two jellyfish
         var pool = Art.schoolerPool
         for _ in 0..<max(0, config.fishCount - roster.count) {
             guard !pool.isEmpty else { break }
@@ -579,7 +579,7 @@ public struct AquariumSim {
     // MARK: - Cleanup crew
 
     private mutating func seedCritters() {
-        // One snail and two small shrimp.
+        // One snail, two shrimp, one starfish.
         critters.append(Critter(kind: 0, x: rng.range(30, Double(config.width - 30)),
                                 y: Double(floorY) - 3, vx: rng.range(0.8, 1.8),
                                 phase: 0, timer: rng.range(2, 6)))
@@ -588,6 +588,9 @@ public struct AquariumSim {
                                     y: Double(floorY) - 2, vx: 0,
                                     phase: rng.range(0, 6.28), timer: rng.range(0.5, 2)))
         }
+        critters.append(Critter(kind: 2, x: rng.range(40, Double(config.width - 40)),
+                                y: Double(floorY) - 5, vx: 0,
+                                phase: rng.range(0, 6.28), timer: rng.range(3, 10)))
     }
 
     private mutating func updateCritters(_ dt: Double) {
@@ -602,6 +605,15 @@ public struct AquariumSim {
                 }
                 critters[i].x += critters[i].vx * dt
                 critters[i].y = Double(floorY) - 3
+            } else if critters[i].kind == 2 {
+                // Starfish: sits still, occasionally creeps an inch.
+                if critters[i].timer <= 0 {
+                    critters[i].timer = rng.range(4, 12)
+                    critters[i].vx = rng.range(-0.6, 0.6)
+                }
+                critters[i].x += critters[i].vx * dt
+                critters[i].vx *= max(0, 1 - 2 * dt)
+                critters[i].y = Double(floorY) - 5
             } else {
                 // Shrimp: hop-scotches along the sand in little bursts.
                 if critters[i].timer <= 0 {
@@ -638,11 +650,12 @@ public struct AquariumSim {
             decor.append(Decor(kind: rng.unit() < 0.5 ? 0 : 1, variant: 0,
                                x: max(2, min(config.width - 10, x))))
         }
-        // Corals between the plants.
+        // Coral formations (and the odd anemone).
         var x = 12
         while x < config.width - 12 {
             if rng.unit() < 0.7 {
-                decor.append(Decor(kind: 2 + rng.int(3),
+                let kind = rng.unit() < 0.22 ? 5 : (2 + rng.int(3))
+                decor.append(Decor(kind: kind,
                                    variant: rng.int(Art.coralPalette.count),
                                    x: x))
             }
@@ -651,11 +664,12 @@ public struct AquariumSim {
     }
 
     private mutating func plantGarden() {
-        let maxH = min(6, floorY - 1)
+        let maxH = floorY - 1
         var x = 6
         while x < config.width - 6 {
             if rng.unit() < 0.85 {
-                let h = rng.int(4) + 3
+                // Occasionally a tall kelp strand.
+                let h = rng.unit() < 0.3 ? rng.int(2) + 5 : rng.int(4) + 3
                 plants.append(Plant(
                     x: x,
                     height: min(h, maxH),

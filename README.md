@@ -1,5 +1,8 @@
 # Touch Bar Aquarium
 
+[![CI](https://github.com/quanphm/touchbar-aquarium/actions/workflows/ci.yml/badge.svg)](https://github.com/quanphm/touchbar-aquarium/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A pixel-art freshwater aquarium that lives in the MacBook Pro Touch Bar (and
 in a small preview window). Built with Swift + AppKit, no Xcode required —
 Command Line Tools are enough.

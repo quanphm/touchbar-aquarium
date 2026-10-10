@@ -18,6 +18,7 @@ struct Options {
     var seed: UInt64?     // pin the world for reproducible renders
     var theme = "freshwater"
     var hour: Double?     // pin the time of day (0..24)
+    var sprites = false   // render a lineup of key sprites instead of the tank
 }
 
 func parseArgs() -> Options {
@@ -36,6 +37,7 @@ func parseArgs() -> Options {
         case "--seed": i += 1; if i < args.count { o.seed = UInt64(args[i]) }
         case "--theme": i += 1; if i < args.count { o.theme = args[i] }
         case "--hour": i += 1; if i < args.count { o.hour = Double(args[i]) }
+        case "--sprites": o.sprites = true
         default: break
         }
         i += 1
@@ -44,6 +46,31 @@ func parseArgs() -> Options {
 }
 
 let opts = parseArgs()
+
+if opts.sprites {
+    let row: [PixelSprite] = [
+        Art.legendarySprite(0), Art.legendarySprite(1), Art.legendarySprite(3),
+        Art.fishSprite(9), Art.fishSprite(8), Art.fishSprite(10), Art.fishSprite(0),
+        Art.critterSprite(0), Art.critterSprite(1), Art.critterSprite(2),
+        Art.decorSprite(kind: 0, variant: 0), Art.decorSprite(kind: 2, variant: 0),
+        Art.decorSprite(kind: 3, variant: 1), Art.decorSprite(kind: 4, variant: 2),
+        Art.decorSprite(kind: 5, variant: 0),
+    ]
+    let gap = 2
+    let totalW = row.reduce(0) { $0 + $1.width + gap } + gap
+    let totalH = (row.map(\.height).max() ?? 1) + 4
+    var f = Frame(width: totalW, height: totalH)
+    f.fill(RGBA(hex: 0x0B2A5E))
+    var x = gap
+    for s in row {
+        s.draw(into: &f, x: x, y: max(0, totalH - 2 - s.height))
+        x += s.width + gap
+    }
+    if let url = writePNG(f, scale: max(1, opts.scale), to: opts.out) {
+        print("Wrote \(url.path) (sprite lineup)")
+        exit(0)
+    }
+}
 
 var config = TankConfig()
 if let s = opts.seed { config.seed = s }
