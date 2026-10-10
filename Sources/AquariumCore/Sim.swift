@@ -273,7 +273,7 @@ public struct AquariumSim {
 
     /// Add the tank's legendary resident (only when the opening roll succeeds).
     private mutating func addLegendary() {
-        let kind = rng.int(Art.legendaryKinds.count)
+        let kind = 0   // Kohaku — always the red-and-white koi
         let homeY = minY + (maxY - minY) * 0.5
         let x = rng.range(Double(minX + 20), Double(maxX - 40))
         let homeX = rng.range(minX + 50, maxX - 50)
