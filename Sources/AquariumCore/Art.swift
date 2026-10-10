@@ -241,13 +241,13 @@ public enum Art {
     }
 
     // A koi, 18x6, facing right — elongated body, flowing tail, dorsal fin,
-    // and barbels at the mouth. Chars: o body, b belly, p patch, f fin/tail,
-    // e eye, . transparent.
+    // barbels, and multiple red patches (mottled, koi-style).
+    // Chars: o body, b belly, p patch, f fin/tail, e eye, . transparent.
     static let legendaryArt = """
 ........ffff......
-...fooooooooooo...
-.ff.ooooopppooooeo
-.ff.bbbbbpppbbbb..
+...foooppoooppoo..
+.ff.oppoopppooooeo
+.ff.bbppbbppbbbb..
 ...fbbbbbbbbbbff..
 ......bbbbbb......
 """
