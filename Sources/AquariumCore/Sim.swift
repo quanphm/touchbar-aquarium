@@ -15,6 +15,8 @@ public struct TankConfig {
     public var dayNightEnabled: Bool = true
     public var dayLength: Double = 600
     public var startHour: Double = 9
+    /// When true, the clock follows real time instead of the fast `dayLength` cycle.
+    public var realClock: Bool = false
     /// Environment palette (theme).
     public var palette: Palette = .freshwater
 
@@ -174,8 +176,12 @@ public struct AquariumSim {
         time += dt
 
         if config.dayNightEnabled {
-            clockHour += dt * 24.0 / max(1, config.dayLength)
-            clockHour = clockHour.truncatingRemainder(dividingBy: 24)
+            if config.realClock {
+                clockHour = (clockHour + dt / 3600.0).truncatingRemainder(dividingBy: 24)
+            } else {
+                clockHour += dt * 24.0 / max(1, config.dayLength)
+                clockHour = clockHour.truncatingRemainder(dividingBy: 24)
+            }
             daylight = AquariumSim.computeDaylight(clockHour)
         }
 
@@ -191,6 +197,13 @@ public struct AquariumSim {
     /// Re-skin the environment (theme).
     public mutating func setPalette(_ palette: Palette) {
         config.palette = palette
+    }
+
+    /// Point the clock at a specific time of day and choose how it advances.
+    public mutating func setClock(hour: Double, realClock: Bool) {
+        clockHour = hour.truncatingRemainder(dividingBy: 24)
+        config.realClock = realClock
+        daylight = AquariumSim.computeDaylight(clockHour)
     }
 
     /// Drop food at horizontal position `x` (art-space). Fish will swim to it.

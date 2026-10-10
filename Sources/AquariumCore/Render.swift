@@ -201,9 +201,24 @@ public enum Aquarium {
             }
 
             if isJelly {
-                sprite.draw(into: &frame, x: px, y: py, flipX: flip, alpha: 0.92)
+                drawJelly(&frame, sprite: sprite, x: px, y: py, phase: f.phase)
             } else {
                 sprite.draw(into: &frame, x: px, y: py, flipX: flip)
+            }
+        }
+    }
+
+    /// Jellyfish bell is rigid; the tentacle rows wobble as it pulses.
+    private static func drawJelly(_ frame: inout Frame, sprite: PixelSprite, x: Int, y: Int, phase: Double) {
+        let tentacleRows = 2
+        let off = Int((sin(phase * 2.4) * 1.0).rounded())
+        for row in 0..<sprite.height {
+            let isTentacle = row >= sprite.height - tentacleRows
+            let dx = isTentacle ? off : 0
+            for col in 0..<sprite.width {
+                guard var c = sprite.pixels[row * sprite.width + col] else { continue }
+                c.a = UInt8((Double(c.a) * 0.92).rounded())
+                frame.blend(x + col + dx, y + row, c)
             }
         }
     }

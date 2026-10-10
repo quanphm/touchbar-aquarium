@@ -1,4 +1,5 @@
 import AppKit
+import Foundation
 import QuartzCore
 import AquariumCore
 
@@ -13,28 +14,43 @@ final class AquariumController {
     private let fps: Double = 20
 
     private var theme: Palette = .freshwater
+    private var followClock = true
 
     init() {
         // A fresh tank every launch: randomise the seed so the layout, the fish,
         // and the legendary roll differ each time. The sim stays deterministic
         // for a given seed, so tests and PNG previews reproduce.
-        var cfg = TankConfig()
-        cfg.seed = UInt64.random(in: 0..<UInt64.max)
-        cfg.palette = .freshwater
-        sim = AquariumSim(config: cfg)
+        sim = AquariumSim(config: AquariumController.makeConfig(palette: .freshwater, followClock: true))
     }
 
     /// Re-roll the whole tank (new layout, fish, legendary) with a fresh seed.
     func newTank() {
-        var cfg = TankConfig()
-        cfg.seed = UInt64.random(in: 0..<UInt64.max)
-        cfg.palette = theme
-        sim = AquariumSim(config: cfg)
+        sim = AquariumSim(config: AquariumController.makeConfig(palette: theme, followClock: followClock))
     }
 
     func setTheme(_ palette: Palette) {
         theme = palette
         sim.setPalette(palette)
+    }
+
+    /// Follow the Mac's real clock (true) or the fast day cycle (false).
+    func setFollowClock(_ on: Bool) {
+        followClock = on
+        sim.setClock(hour: on ? AquariumController.currentHour() : sim.clockHour, realClock: on)
+    }
+
+    private static func makeConfig(palette: Palette, followClock: Bool) -> TankConfig {
+        var cfg = TankConfig()
+        cfg.seed = UInt64.random(in: 0..<UInt64.max)
+        cfg.palette = palette
+        cfg.realClock = followClock
+        if followClock { cfg.startHour = currentHour() }
+        return cfg
+    }
+
+    private static func currentHour() -> Double {
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: Date())
+        return Double(parts.hour ?? 9) + Double(parts.minute ?? 0) / 60.0
     }
 
     func addObserver(_ view: NSView) { observers.add(view) }

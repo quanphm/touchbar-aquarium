@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var preview: PreviewWindowController?
     private var statusItem: NSStatusItem?
     private var alwaysOn = false
+    private var followClock = true
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller.start()
@@ -116,6 +117,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         newTank.target = self
         menu.addItem(newTank)
 
+        let clock = NSMenuItem(title: "Follow the system clock", action: #selector(toggleClock), keyEquivalent: "")
+        clock.state = followClock ? .on : .off
+        clock.target = self
+        menu.addItem(clock)
+
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit Touch Bar Aquarium", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
@@ -151,6 +157,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func makeNewTank() {
         controller.newTank()
+        rebuildMenu()
+    }
+
+    @objc private func toggleClock() {
+        followClock.toggle()
+        controller.setFollowClock(followClock)
         rebuildMenu()
     }
 }
