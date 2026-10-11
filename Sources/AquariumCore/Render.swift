@@ -182,7 +182,7 @@ public enum Aquarium {
             let isJelly = style.shape == .jelly
             let sprite = f.isLegendary
                 ? Art.legendarySprite(f.legendaryKind)
-                : Art.fishSprite(f.species, puffed: f.puff > 0)
+                : (f.baby ? Art.frySprite(f.species) : Art.fishSprite(f.species, puffed: f.puff > 0))
             let flip = f.facing < 0
             // A gentle vertical bob reads as "swimming"; the tail flap below adds
             // the actual swish. (Row-wise body undulation looked torn at this size.)
@@ -227,7 +227,7 @@ public enum Aquarium {
                 fin = style.fin
                 highlight = style.highlight
                 accent = style.accent
-                tailCols = Art.tailColumns(for: style.shape)
+                tailCols = f.baby ? 2 : Art.tailColumns(for: style.shape)
             }
 
             drawFishSprite(&frame, sprite: sprite, x: px, y: py, flip: flip,

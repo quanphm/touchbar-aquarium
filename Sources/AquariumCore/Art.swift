@@ -226,6 +226,25 @@ public enum Art {
         }
     }
 
+    // A baby fish (fry): its species' palette, but small. 5x3.
+    static let fryShape = """
+.ooo.
+ffooe
+.bbb.
+"""
+
+    private static var fryCache: [Int: PixelSprite] = [:]
+
+    /// A small fry coloured like species `index`.
+    public static func frySprite(_ index: Int) -> PixelSprite {
+        let i = normalized(index)
+        if let cached = fryCache[i] { return cached }
+        let s = species[i]
+        let sprite = PixelSprite(art: fryShape, ["o": s.body, "b": s.belly, "f": s.fin, "e": s.eye])
+        fryCache[i] = sprite
+        return sprite
+    }
+
     // MARK: - Legendary fish
 
     public static let legendaryKinds: [LegendaryKind] = [

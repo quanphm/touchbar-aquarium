@@ -7,6 +7,8 @@ public struct TankConfig {
     public var height: Int = 10
     public var floorHeight: Int = 2
     public var fishCount: Int = 7
+    /// A few extra baby fish (fry). Kept small so the tank doesn't crowd.
+    public var babyCount: Int = 3
     /// Whether the tank includes its legendary resident. On by default.
     public var legendaryChance: Double = 1.0
     public var seed: UInt64 = 0xA9E1
@@ -58,6 +60,7 @@ public struct Fish {
     public var burst: Double = 0   // remaining dart-burst time
     public var puff: Double = 0    // remaining puffer-inflation time
     public var pulse: Double = 0   // jellyfish pulse timer
+    public var baby: Bool = false  // a small fry, drawn with a smaller sprite
 }
 
 public struct Bubble {
@@ -283,6 +286,35 @@ public struct AquariumSim {
             } else {
                 requestTarget(idx)
             }
+        }
+
+        // A few baby fish (fry). They use a smaller sprite and drift within their
+        // own patch, so the tank reads as a family without crowding.
+        for _ in 0..<max(0, config.babyCount) {
+            guard !Art.schoolerPool.isEmpty else { break }
+            let speciesIndex = Art.schoolerPool[rng.int(Art.schoolerPool.count)]
+            let style = Art.species[speciesIndex]
+            let homeY = minY + (maxY - minY) * style.depth
+            let homeX = rng.range(minX + 20, maxX - 20)
+            let x = rng.range(Double(minX + 6), Double(maxX - 6))
+            let y = min(maxY - 1, max(minY + 1, homeY + rng.range(-0.8, 0.8)))
+            let dir = rng.unit() < 0.5 ? -1.0 : 1.0
+            fish.append(Fish(
+                x: x, y: y,
+                vx: dir * rng.range(1.5, 3.0),
+                vy: 0,
+                species: speciesIndex,
+                facing: dir < 0 ? -1 : 1,
+                phase: rng.range(0, 6.28),
+                speed: rng.range(3.4, 5.4) * style.speedScale,
+                satiety: rng.range(0.2, 0.7),
+                homeY: homeY,
+                homeX: homeX,
+                radius: Double(Art.frySprite(speciesIndex).width) * 0.5,
+                tx: x, ty: y, retarget: 0,
+                baby: true
+            ))
+            requestTarget(fish.count - 1)
         }
     }
 

@@ -181,7 +181,7 @@ do {
 
     var has = AquariumSim()
     check("legendary present by default", has.legendaryName != nil, "name: \(has.legendaryName ?? "nil")")
-    check("legendary adds one fish", has.fish.count == has.config.fishCount + 1)
+    check("legendary adds one fish", has.fish.count == has.config.fishCount + 1 + has.config.babyCount)
     run(&has, seconds: 30)
     let inside = has.fish.allSatisfy { $0.x >= 0 && $0.x <= Double(has.config.width) }
     check("legendary stays in bounds", inside)
@@ -295,6 +295,19 @@ if ProcessInfo.processInfo.environment["JEV_LIVE_TEST"] == "1", let key = JevKey
     }
 } else {
     print("        (live Jev test skipped; set JEV_LIVE_TEST=1 to run)")
+}
+
+// Baby fish (fry): present, small, and keep the tank uncrowded.
+do {
+    var sim = AquariumSim()
+    let babies = sim.fish.filter { $0.baby }
+    check("tank includes baby fish", babies.count == sim.config.babyCount, "got \(babies.count)")
+    let smaller = babies.allSatisfy { Art.frySprite($0.species).width < Art.fishSprite($0.species).width }
+    check("babies use a smaller sprite", smaller)
+    run(&sim, seconds: 30)
+    check("babies stay in the tank", sim.fish.filter { $0.baby }.allSatisfy {
+        $0.x >= 0 && $0.x <= Double(sim.config.width) && $0.y >= 0 && $0.y <= Double(sim.config.height)
+    })
 }
 
 print("\n\(checks - failures)/\(checks) checks passed")
