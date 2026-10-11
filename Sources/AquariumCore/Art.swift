@@ -29,10 +29,15 @@ public struct FishStyle {
     public let stripe: RGBA
     /// Soft aura color (jellyfish). Defaults to nil.
     public let glow: RGBA?
+    /// Rim-light sheen along the fish's back. Defaults to a lightened body.
+    public let highlight: RGBA
+    /// Fin-tip accent. Defaults to a lightened fin.
+    public let accent: RGBA
 
     public init(_ name: String, shape: FishShape, body: RGBA, belly: RGBA, fin: RGBA, eye: RGBA,
                 depth: Double, speedScale: Double = 1.0, darts: Double = 0.15,
-                stripe: RGBA? = nil, glow: RGBA? = nil) {
+                stripe: RGBA? = nil, glow: RGBA? = nil,
+                highlight: RGBA? = nil, accent: RGBA? = nil) {
         self.name = name
         self.shape = shape
         self.body = body
@@ -44,6 +49,8 @@ public struct FishStyle {
         self.darts = darts
         self.stripe = stripe ?? belly
         self.glow = glow
+        self.highlight = highlight ?? body.mixed(with: RGBA(hex: 0xFFFFFF), 0.38)
+        self.accent = accent ?? fin.mixed(with: RGBA(hex: 0xFFFFFF), 0.30)
     }
 }
 
@@ -207,6 +214,16 @@ public enum Art {
 
     public static func style(_ index: Int) -> FishStyle {
         species[normalized(index)]
+    }
+
+    /// How many leftmost sprite columns form the tail, for the swim flap.
+    public static func tailColumns(for shape: FishShape) -> Int {
+        switch shape {
+        case .standard, .clown: return 2
+        case .guppy: return 3
+        case .angel, .loach: return 1
+        case .puffer, .jelly: return 0
+        }
     }
 
     // MARK: - Legendary fish

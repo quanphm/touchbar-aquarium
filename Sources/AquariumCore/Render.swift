@@ -173,6 +173,10 @@ public enum Aquarium {
 
     private static func drawFish(_ frame: inout Frame, sim: AquariumSim, floorY: Int) {
         let offsets = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
+        let palette = sim.config.palette
+        let minY = 1.5
+        let span = max(0.001, (Double(floorY) - 1.5) - minY)
+
         for f in sim.fish {
             let style = Art.species[((f.species % Art.species.count) + Art.species.count) % Art.species.count]
             let isJelly = style.shape == .jelly
@@ -180,8 +184,8 @@ public enum Aquarium {
                 ? Art.legendarySprite(f.legendaryKind)
                 : Art.fishSprite(f.species, puffed: f.puff > 0)
             let flip = f.facing < 0
-            // A gentle vertical bob reads as "swimming" without shearing the
-            // tiny sprite. (Row-wise undulation looked torn at this size.)
+            // A gentle vertical bob reads as "swimming"; the tail flap below adds
+            // the actual swish. (Row-wise body undulation looked torn at this size.)
             let bob = Int((sin(f.phase) * 0.6).rounded())
             var px = Int(f.x.rounded()) - sprite.width / 2
             var py = Int(f.y.rounded()) - sprite.height / 2 + bob
@@ -202,8 +206,72 @@ public enum Aquarium {
 
             if isJelly {
                 drawJelly(&frame, sprite: sprite, x: px, y: py, phase: f.phase)
+                continue
+            }
+
+            // Depth cue: a fish that hangs nearer the surface reads as farther
+            // back, so it is tinted toward the water. (1 = near, 0 = far.)
+            let near = max(0, min(1, (f.homeY - minY) / span))
+            let depth = 1 - near
+
+            let fin: RGBA, highlight: RGBA, accent: RGBA
+            let tailCols: Int
+            if f.isLegendary {
+                let kinds = Art.legendaryKinds
+                let k = kinds[((f.legendaryKind % kinds.count) + kinds.count) % kinds.count]
+                fin = k.fin
+                highlight = k.glow.mixed(with: RGBA(hex: 0xFFFFFF), 0.30)
+                accent = k.patch
+                tailCols = 2
             } else {
-                sprite.draw(into: &frame, x: px, y: py, flipX: flip)
+                fin = style.fin
+                highlight = style.highlight
+                accent = style.accent
+                tailCols = Art.tailColumns(for: style.shape)
+            }
+
+            drawFishSprite(&frame, sprite: sprite, x: px, y: py, flip: flip,
+                           tailCols: tailCols, phase: f.phase, burst: f.burst,
+                           depth: depth, palette: palette,
+                           fin: fin, highlight: highlight, accent: accent)
+        }
+    }
+
+    /// Draws a fish column by column so the tail can swish independently of the
+    /// body, the back catches a rim light, and the fin tips take the accent.
+    private static func drawFishSprite(_ frame: inout Frame, sprite: PixelSprite, x: Int, y: Int,
+                                       flip: Bool, tailCols: Int, phase: Double, burst: Double,
+                                       depth: Double, palette: Palette,
+                                       fin: RGBA, highlight: RGBA, accent: RGBA) {
+        // The tail flaps as a unit (never tearing from the body); the tip moves
+        // a little further during a dart burst.
+        let swish = sin(phase * 1.9) * (0.9 + (burst > 0.05 ? 0.5 : 0))
+        let tint = (1 - depth) * 0.26
+
+        // Topmost opaque pixel per column, for the back's rim light.
+        var topRow = [Int](repeating: -1, count: sprite.width)
+        for col in 0..<sprite.width {
+            for row in 0..<sprite.height where sprite.pixels[row * sprite.width + col] != nil {
+                topRow[col] = row
+                break
+            }
+        }
+
+        for row in 0..<sprite.height {
+            for col in 0..<sprite.width {
+                guard var c = sprite.pixels[row * sprite.width + col] else { continue }
+
+                var dx = 0
+                if tailCols >= 2 && col < tailCols {
+                    // Shift the whole tail together so it never tears off the body.
+                    dx = Int(swish.rounded())
+                }
+                if c == fin { c = c.mixed(with: accent, 0.35) }
+                if row == topRow[col] { c = c.mixed(with: highlight, 0.40) }
+                if tint > 0.001 { c = c.mixed(with: palette.waterTop, tint) }
+
+                let sx = flip ? (sprite.width - 1 - col) : col
+                frame.blend(x + sx + (flip ? -dx : dx), y + row, c)
             }
         }
     }

@@ -128,7 +128,9 @@ public struct AquariumSim {
     public private(set) var critters: [Critter] = []
     public private(set) var decor: [Decor] = []
     public private(set) var backdrop: [Spire] = []
-    public private(set) var bubblerX: Int = 0
+    /// The columns bubbles rise from. The main column sits near the centre, with
+    /// a few more spread across the tank.
+    public private(set) var bubblers: [Int] = []
     public private(set) var time: Double = 0
     /// Current time of day, 0..24. Advances with the day/night cycle.
     public private(set) var clockHour: Double = 9
@@ -143,7 +145,7 @@ public struct AquariumSim {
     }
 
     private var rng: SeededRandom
-    private var bubbleTimer: Double = 0
+    private var bubbleTimers: [Double] = []
     private var fearTimer: Double = 0
     private var fearX: Double = 0
     private var legendaryIndex: Int?
@@ -166,7 +168,10 @@ public struct AquariumSim {
     public init(config: TankConfig = TankConfig()) {
         self.config = config
         self.rng = SeededRandom(seed: config.seed)
-        self.bubblerX = config.width - 26
+        let cx = config.width / 2
+        let margin = 6
+        self.bubblers = [cx, cx - 78, cx + 84, config.width - 34]
+            .map { max(margin, min(config.width - margin, $0)) }
         self.clockHour = config.startHour
         self.daylight = AquariumSim.computeDaylight(config.startHour)
         scatterFish()
@@ -568,28 +573,34 @@ public struct AquariumSim {
     // MARK: - Bubbles
 
     private mutating func seedBubbles() {
-        for _ in 0..<6 {
-            bubbles.append(Bubble(
-                x: Double(bubblerX) + rng.range(-1, 1),
-                y: rng.range(Double(floorY) - 6, Double(floorY) - 1),
-                vy: -rng.range(4, 7),
-                phase: rng.range(0, 6.28),
-                big: rng.unit() < 0.25
-            ))
+        // Each column emits on its own staggered timer, so the streams differ.
+        bubbleTimers = bubblers.map { _ in rng.range(0, 1.0) }
+        for bx in bubblers {
+            for _ in 0..<4 {
+                bubbles.append(Bubble(
+                    x: Double(bx) + rng.range(-1, 1),
+                    y: rng.range(Double(floorY) - 6, Double(floorY) - 1),
+                    vy: -rng.range(4, 7),
+                    phase: rng.range(0, 6.28),
+                    big: rng.unit() < 0.25
+                ))
+            }
         }
     }
 
     private mutating func updateBubbles(_ dt: Double) {
-        bubbleTimer -= dt
-        if bubbleTimer <= 0 {
-            bubbleTimer = rng.range(0.3, 1.0)
-            bubbles.append(Bubble(
-                x: Double(bubblerX) + rng.range(-1, 1),
-                y: Double(floorY) - 1,
-                vy: -rng.range(4, 7),
-                phase: rng.range(0, 6.28),
-                big: rng.unit() < 0.22
-            ))
+        for i in bubblers.indices where i < bubbleTimers.count {
+            bubbleTimers[i] -= dt
+            if bubbleTimers[i] <= 0 {
+                bubbleTimers[i] = rng.range(0.35, 0.9)
+                bubbles.append(Bubble(
+                    x: Double(bubblers[i]) + rng.range(-1, 1),
+                    y: Double(floorY) - 1,
+                    vy: -rng.range(4, 7),
+                    phase: rng.range(0, 6.28),
+                    big: rng.unit() < 0.22
+                ))
+            }
         }
         var kept: [Bubble] = []
         kept.reserveCapacity(bubbles.count)

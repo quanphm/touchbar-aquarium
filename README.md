@@ -14,7 +14,7 @@ Command Line Tools are enough.
 A living little tank, ~30pt tall, rendered at 3× so every pixel is crisp on the
 OLED strip: a **rich blue water gradient**, a **background of rocks, colorful
 coral, and distant reef silhouettes**, **dappled caustic light**, a swaying
-plant bed, light rays, drifting motes, and a bubble column. Corals glow softly
+plant bed, light rays, drifting motes, and bubbling columns. Corals glow softly
 for a bioluminescent feel.
 
 **The cast:** a striped **clownfish**, a round **pufferfish**, a pulsing,
