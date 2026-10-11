@@ -116,18 +116,30 @@ public struct Critter {
     public var timer: Double
 }
 
-/// A static background piece: a rock or a coral.
+/// A static background piece: a rock, coral, anemone, or sand castle.
 public struct Decor {
-    public var kind: Int      // 0 big rock, 1 small rock, 2 branch, 3 fan, 4 brain
+    public var kind: Int      // 0 big rock, 1 small rock, 2 branch, 3 fan, 4 brain, 5 anemone, 6 sand castle
     public var variant: Int
     public var x: Int
 }
 
-/// A distant reef silhouette that gives the tank depth.
+/// A distant reef silhouette that gives the tank depth. `layer` 0 = far (drawn
+/// darkest, behind everything), 1 = near.
 public struct Spire {
     public var x: Int
     public var width: Int
     public var height: Int
+    public var layer: Int = 1
+}
+
+/// A drifting, softly glowing mote of plankton — the tank's bioluminescence.
+public struct Plankton {
+    public var x: Double
+    public var y: Double
+    public var vx: Double
+    public var vy: Double
+    public var phase: Double
+    public var hue: Int
 }
 
 /// The tank's living model. This is the deep module: a tiny interface
@@ -141,6 +153,7 @@ public struct AquariumSim {
     public private(set) var pellets: [Pellet] = []
     public private(set) var plants: [Plant] = []
     public private(set) var sparkles: [Sparkle] = []
+    public private(set) var plankton: [Plankton] = []
     public private(set) var critters: [Critter] = []
     public private(set) var decor: [Decor] = []
     public private(set) var backdrop: [Spire] = []
@@ -201,6 +214,7 @@ public struct AquariumSim {
         decorate()
         seedCritters()
         seedBubbles()
+        seedPlankton()
         fryTimer = config.fryBirthSeconds * rng.range(0.92, 1.08)
     }
 
@@ -227,6 +241,7 @@ public struct AquariumSim {
         updateCritters(dt)
         updateSparkles(dt)
         updateBubbles(dt)
+        updatePlankton(dt)
         updateFry(dt)
 
         if fearTimer > 0 { fearTimer = max(0, fearTimer - dt) }
@@ -346,7 +361,7 @@ public struct AquariumSim {
 
     /// Add the tank's legendary resident (only when the opening roll succeeds).
     private mutating func addLegendary() {
-        let kind = 0   // Kohaku — always the red-and-white koi
+        let kind = rng.int(Art.legendaryKinds.count)   // Kohaku or the Rainbow Mermaid
         let homeY = minY + (maxY - minY) * 0.5
         let x = rng.range(Double(minX + 20), Double(maxX - 40))
         let homeX = rng.range(minX + 50, maxX - 50)
@@ -703,6 +718,38 @@ public struct AquariumSim {
         bubbles = kept
     }
 
+    // MARK: - Plankton
+
+    private mutating func seedPlankton() {
+        let count = max(12, config.width / 22)
+        for _ in 0..<count {
+            plankton.append(Plankton(
+                x: rng.range(0, Double(config.width)),
+                y: rng.range(1, Double(floorY) - 1),
+                vx: rng.range(-1.6, 1.6),
+                vy: rng.range(-0.8, 0.8),
+                phase: rng.range(0, 6.28),
+                hue: rng.int(Art.planktonColors.count)
+            ))
+        }
+    }
+
+    private mutating func updatePlankton(_ dt: Double) {
+        let w = Double(config.width)
+        for i in 0..<plankton.count {
+            plankton[i].phase += dt * (1.0 + Double(plankton[i].hue % 3) * 0.35)
+            plankton[i].x += plankton[i].vx * dt
+            plankton[i].y += plankton[i].vy * dt
+            if plankton[i].x < 0 { plankton[i].x += w }
+            if plankton[i].x >= w { plankton[i].x -= w }
+            if plankton[i].y < 1 { plankton[i].y = 1; plankton[i].vy = abs(plankton[i].vy) }
+            if plankton[i].y > Double(floorY) - 1 {
+                plankton[i].y = Double(floorY) - 1
+                plankton[i].vy = -abs(plankton[i].vy)
+            }
+        }
+    }
+
     // MARK: - Fry
 
     /// Birth a new fry now and then, up to the population cap.
@@ -820,12 +867,20 @@ public struct AquariumSim {
 
     /// Scatter static rocks and corals along the back of the tank.
     private mutating func decorate() {
-        // Distant reef silhouettes for a sense of depth.
+        // Far reef silhouettes — taller and sparser, drawn darkest for depth.
+        var fx = Int(Double(config.width) * 0.03)
+        while fx < config.width - 40 {
+            let width = rng.int(22) + 12
+            let height = rng.int(4) + 5
+            backdrop.append(Spire(x: fx, width: width, height: height, layer: 0))
+            fx += width + rng.int(70) + 40
+        }
+        // Near reef silhouettes.
         var bx = Int(Double(config.width) * 0.1)
         while bx < config.width - 30 {
             let width = rng.int(12) + 6
             let height = rng.int(4) + 3
-            backdrop.append(Spire(x: bx, width: width, height: height))
+            backdrop.append(Spire(x: bx, width: width, height: height, layer: 1))
             bx += width + rng.int(55) + 28
         }
         // Rock formations.
@@ -844,6 +899,12 @@ public struct AquariumSim {
                                    x: x))
             }
             x += rng.int(26) + 32
+        }
+        // One or two sand castles on the sand.
+        let castles = 1 + (rng.unit() < 0.5 ? 1 : 0)
+        for _ in 0..<castles {
+            let x = Int(rng.range(Double(config.width) * 0.15, Double(config.width) * 0.85))
+            decor.append(Decor(kind: 6, variant: 0, x: max(2, min(config.width - 12, x))))
         }
     }
 

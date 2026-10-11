@@ -104,7 +104,9 @@ public extension LayoutSnapshot {
             case 2: corals += 1; placements.append(Placement(type: "branch_coral", xPct: xp, color: coralColor(d.variant)))
             case 3: corals += 1; placements.append(Placement(type: "fan_coral", xPct: xp, color: coralColor(d.variant)))
             case 4: corals += 1; placements.append(Placement(type: "brain_coral", xPct: xp, color: coralColor(d.variant)))
-            default: anemones += 1; placements.append(Placement(type: "anemone", xPct: xp, color: coralColor(d.variant)))
+            case 5: anemones += 1; placements.append(Placement(type: "anemone", xPct: xp, color: coralColor(d.variant)))
+            case 6: placements.append(Placement(type: "sand_castle", xPct: xp))
+            default: break
             }
         }
 

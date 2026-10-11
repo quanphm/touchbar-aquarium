@@ -53,13 +53,13 @@ let opts = parseArgs()
 
 if opts.sprites {
     let row: [PixelSprite] = [
-        Art.legendarySprite(0),
+        Art.legendarySprite(0), Art.legendarySprite(1),
         Art.fishSprite(9), Art.fishSprite(8), Art.fishSprite(10), Art.fishSprite(0),
         Art.fishSprite(11), Art.fishSprite(12),
         Art.critterSprite(0), Art.critterSprite(1), Art.critterSprite(2),
         Art.decorSprite(kind: 0, variant: 0), Art.decorSprite(kind: 2, variant: 0),
         Art.decorSprite(kind: 3, variant: 1), Art.decorSprite(kind: 4, variant: 2),
-        Art.decorSprite(kind: 5, variant: 0),
+        Art.decorSprite(kind: 5, variant: 0), Art.decorSprite(kind: 6, variant: 0),
     ]
     let gap = 2
     let totalW = row.reduce(0) { $0 + $1.width + gap } + gap

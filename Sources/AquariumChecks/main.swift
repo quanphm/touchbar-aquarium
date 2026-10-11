@@ -340,10 +340,23 @@ do {
 do {
     let names = Set(Art.species.map { $0.name })
     check("betta and goldfish were added", names.contains("betta") && names.contains("goldfish"))
-    check("only Kohaku remains legendary",
-          Art.legendaryKinds.count == 1 && Art.legendaryKinds[0].name == "Kohaku")
+    check("legendary kinds are Kohaku and the Rainbow Mermaid",
+          Art.legendaryKinds.map { $0.name } == ["Kohaku", "Rainbow Mermaid"])
+    check("the mermaid uses its own art",
+          Art.legendaryKinds[1].shape == .mermaid
+              && Art.legendarySprite(1).height > Art.legendarySprite(0).height)
     check("new species are spawnable",
           Art.schoolerPool.contains(11) && Art.schoolerPool.contains(12))
+}
+
+// Bioluminescent plankton drift within the tank.
+do {
+    var sim = AquariumSim()
+    check("tank has plankton", !sim.plankton.isEmpty, "\(sim.plankton.count)")
+    run(&sim, seconds: 30)
+    check("plankton stays in the tank", sim.plankton.allSatisfy {
+        $0.x >= 0 && $0.x <= Double(sim.config.width) && $0.y >= 0 && $0.y <= Double(sim.config.height)
+    })
 }
 
 print("\n\(checks - failures)/\(checks) checks passed")

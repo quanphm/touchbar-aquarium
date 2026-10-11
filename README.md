@@ -13,9 +13,9 @@ Command Line Tools are enough.
 
 A living little tank, ~30pt tall, rendered at 3× so every pixel is crisp on the
 OLED strip: a **rich blue water gradient**, a **background of rocks, colorful
-coral, and distant reef silhouettes**, **dappled caustic light**, a swaying
-plant bed, light rays, drifting motes, and bubbling columns. Corals glow softly
-for a bioluminescent feel.
+coral, sand castles, and layered reef silhouettes**, **dappled caustic light**, a swaying
+plant bed, light rays, drifting **bioluminescent plankton**, and bubbling
+columns. Corals and plankton **glow**, brightest after dark.
 
 **The cast:** a striped **clownfish**, a round **pufferfish**, a pulsing,
 glowing **jellyfish**, **three random schoolers** (from neon tetra, guppy,
@@ -39,9 +39,10 @@ in bursts; the puffer inflates when startled), and switchable **themes**
 
 ## The legendary resident
 
-Every tank includes a **legendary koi**: a big, elegant carp wreathed in a soft
-glow and trailing sparkles, gliding slower and grander than the rest. It is a
-red-and-white ***Kohaku***, and its name shows in the menu-bar menu.
+Every tank includes a **legendary resident**, wreathed in a soft glow and
+trailing sparkles, gliding slower and grander than the rest: either a
+red-and-white ***Kohaku*** koi or a ***Rainbow Mermaid*** with rainbow hair and
+a teal tail. Its name shows in the menu-bar menu.
 
 Render it to PNG:
 

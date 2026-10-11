@@ -56,10 +56,14 @@ public struct FishStyle {
     }
 }
 
+/// What art a legendary resident uses.
+public enum LegendaryShape { case koi, mermaid }
+
 /// A rare, named catch — the tank's legendary resident. Bigger and wreathed in
 /// a soft glow.
 public struct LegendaryKind {
     public let name: String
+    public let shape: LegendaryShape
     public let body: RGBA
     public let belly: RGBA
     public let fin: RGBA
@@ -67,8 +71,10 @@ public struct LegendaryKind {
     public let patch: RGBA
     public let glow: RGBA
 
-    public init(_ name: String, body: RGBA, belly: RGBA, fin: RGBA, eye: RGBA, patch: RGBA, glow: RGBA) {
+    public init(_ name: String, shape: LegendaryShape = .koi, body: RGBA, belly: RGBA,
+                fin: RGBA, eye: RGBA, patch: RGBA, glow: RGBA) {
         self.name = name
+        self.shape = shape
         self.body = body
         self.belly = belly
         self.fin = fin
@@ -169,6 +175,13 @@ public enum Art {
     public static let bubble = RGBA(hex: 0xAFE0FF, alpha: 200)
     public static let bubbleHi = RGBA(hex: 0xEAFAFF, alpha: 230)
 
+    /// Bioluminescent plankton tints.
+    public static let planktonColors: [RGBA] = [
+        RGBA(hex: 0x7FF0E0),  // cyan
+        RGBA(hex: 0xB79CFF),  // violet
+        RGBA(hex: 0x8CFF9E),  // green
+    ]
+
     public static let night = RGBA(hex: 0x0A1A2E)
 
     // MARK: - Species
@@ -266,13 +279,21 @@ ffooe
         LegendaryKind("Kohaku",
                       body: RGBA(hex: 0xF4F1EC), belly: RGBA(hex: 0xFFFFFF), fin: RGBA(hex: 0xDAD3C8),
                       eye: RGBA(hex: 0x161311), patch: RGBA(hex: 0xD93B2B), glow: RGBA(hex: 0xFFB59A)),
+        LegendaryKind("Rainbow Mermaid", shape: .mermaid,
+                      body: RGBA(hex: 0xF2C9A0), belly: RGBA(hex: 0xFFE6C8), fin: RGBA(hex: 0x35C4A0),
+                      eye: RGBA(hex: 0x2A2030), patch: RGBA(hex: 0xE85D9E), glow: RGBA(hex: 0xFFB0E0)),
     ]
 
     public static func legendarySprite(_ kind: Int) -> PixelSprite {
         let k = legendaryKinds[((kind % legendaryKinds.count) + legendaryKinds.count) % legendaryKinds.count]
-        return PixelSprite(art: legendaryArt, [
-            "o": k.body, "b": k.belly, "p": k.patch, "f": k.fin, "e": k.eye,
-        ])
+        switch k.shape {
+        case .koi:
+            return PixelSprite(art: legendaryArt, [
+                "o": k.body, "b": k.belly, "p": k.patch, "f": k.fin, "e": k.eye,
+            ])
+        case .mermaid:
+            return rainbowMermaidSprite()
+        }
     }
 
     public static func legendaryGlow(_ kind: Int) -> RGBA {
@@ -290,6 +311,44 @@ ffooe
 ...fbbbbbbbbbbff..
 ......bbbbbb......
 """
+
+    // A rainbow mermaid, 10x8: gold crown, rainbow hair, shell top, teal tail.
+    static let rainbowMermaidArt = """
+...gggg...
+..rrooyy..
+.rrsssyyu.
+.rsesesyu.
+.rrssssy..
+..bbbby...
+..tTTtt...
+.tTtttTt..
+"""
+
+    public static let mermaidCrown = RGBA(hex: 0xF6C84A)
+    public static let mermaidHairPink = RGBA(hex: 0xE85D9E)
+    public static let mermaidHairOrange = RGBA(hex: 0xF2A03C)
+    public static let mermaidHairGreen = RGBA(hex: 0x59C36A)
+    public static let mermaidHairBlue = RGBA(hex: 0x5B8DEF)
+    public static let mermaidSkin = RGBA(hex: 0xF2C9A0)
+    public static let mermaidEye = RGBA(hex: 0x2A2030)
+    public static let mermaidBra = RGBA(hex: 0x9B5DE5)
+    public static let mermaidTail = RGBA(hex: 0x35C4A0)
+    public static let mermaidTailDark = RGBA(hex: 0x1E8A72)
+
+    public static func rainbowMermaidSprite() -> PixelSprite {
+        PixelSprite(art: rainbowMermaidArt, [
+            "g": mermaidCrown,
+            "r": mermaidHairPink,
+            "o": mermaidHairOrange,
+            "y": mermaidHairGreen,
+            "u": mermaidHairBlue,
+            "s": mermaidSkin,
+            "e": mermaidEye,
+            "b": mermaidBra,
+            "t": mermaidTail,
+            "T": mermaidTailDark,
+        ])
+    }
 
     private static func normalized(_ index: Int) -> Int {
         ((index % species.count) + species.count) % species.count
@@ -436,6 +495,20 @@ ttttttt
 ..ttt..
 """
 
+    // A little sand castle, 9x6: crenellated top, shaded walls, a dark doorway.
+    static let sandCastleShape = """
+c.c.c.c.c
+ccccccccc
+cCcccccCc
+cCcdddcCc
+cCcdddcCc
+ccccccccc
+"""
+
+    public static let sandCastle = RGBA(hex: 0xE3C48C)
+    public static let sandCastleShade = RGBA(hex: 0xBFA06A)
+    public static let sandCastleDark = RGBA(hex: 0x6E5430)
+
     public static let starfishBody = RGBA(hex: 0xE8804A)
     public static let starfishHi = RGBA(hex: 0xFFC08A)
 
@@ -515,7 +588,7 @@ ccwccc
     ]
 
     /// Background piece. kind: 0 big rock, 1 small rock, 2 branch coral,
-    /// 3 fan coral, 4 brain coral, 5 anemone.
+    /// 3 fan coral, 4 brain coral, 5 anemone, 6 sand castle.
     public static func decorSprite(kind: Int, variant: Int) -> PixelSprite {
         switch kind {
         case 0: return PixelSprite(art: bigRockShape, ["r": rockDark, "R": rockLight])
@@ -523,6 +596,8 @@ ccwccc
         case 2: return coralSprite(branchCoralShape, variant)
         case 3: return coralSprite(fanCoralShape, variant)
         case 4: return coralSprite(brainCoralShape, variant)
+        case 6: return PixelSprite(art: sandCastleShape,
+                                   ["c": sandCastle, "C": sandCastleShade, "d": sandCastleDark])
         default: return coralSprite(anemoneShape, variant)
         }
     }

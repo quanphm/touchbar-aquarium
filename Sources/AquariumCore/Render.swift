@@ -45,6 +45,36 @@ public enum Aquarium {
         if sim.daylight < 1 {
             applyNight(&frame, w: w, h: h, daylight: sim.daylight, palette: palette)
         }
+
+        // Bioluminescence goes last so it glows over the night tint.
+        drawBioluminescence(&frame, sim: sim, floorY: floorY)
+    }
+
+    /// Plankton and coral glow. Faint by day, much brighter after dark.
+    private static func drawBioluminescence(_ frame: inout Frame, sim: AquariumSim, floorY: Int) {
+        let night = 1 - max(0, min(1, sim.daylight))
+
+        for p in sim.plankton {
+            let pulse = 0.5 + 0.5 * sin(p.phase)
+            let a = 0.20 + 0.45 * pulse + 0.30 * night
+            let colors = Art.planktonColors
+            let color = colors[((p.hue % colors.count) + colors.count) % colors.count]
+            frame.blend(Int(p.x.rounded()), Int(p.y.rounded()),
+                        color.withAlpha(UInt8(max(0, min(255, 255 * a)))))
+        }
+
+        guard night > 0.05 else { return }
+        let offsets = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        for d in sim.decor where d.kind >= 2 && d.kind <= 5 {
+            let sprite = Art.decorSprite(kind: d.kind, variant: d.variant)
+            let base = Art.coralPalette[((d.variant % Art.coralPalette.count) + Art.coralPalette.count) % Art.coralPalette.count]
+            let glow = base.withAlpha(UInt8(70 * night))
+            let y = floorY - sprite.height
+            let sway = Int((sin(sim.time * 1.1 + Double(d.x) * 0.13) * 0.7).rounded())
+            for (dx, dy) in offsets {
+                sprite.drawSilhouette(into: &frame, x: d.x + sway + dx, y: y + dy, color: glow)
+            }
+        }
     }
 
     // MARK: - Background
@@ -111,10 +141,11 @@ public enum Aquarium {
         let offsets = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         for d in sim.decor {
             let sprite = Art.decorSprite(kind: d.kind, variant: d.variant)
+            let isCoral = d.kind >= 2 && d.kind <= 5
             // Corals and anemones sway gently in the current.
-            let sway = d.kind >= 2 ? Int((sin(sim.time * 1.1 + Double(d.x) * 0.13) * 0.7).rounded()) : 0
+            let sway = isCoral ? Int((sin(sim.time * 1.1 + Double(d.x) * 0.13) * 0.7).rounded()) : 0
             let y = floorY - sprite.height
-            if d.kind >= 2 {
+            if isCoral {
                 // Corals glow softly, bioluminescent-style.
                 let base = Art.coralPalette[((d.variant % Art.coralPalette.count) + Art.coralPalette.count) % Art.coralPalette.count]
                 let glow = base.withAlpha(42)
@@ -137,16 +168,20 @@ public enum Aquarium {
         }
     }
 
-    /// Distant reef spires, drawn in a flat silhouette for depth.
+    /// Distant reef spires, drawn in a flat silhouette for depth. The far layer
+    /// is darker still, so the tank reads as having distance.
     private static func drawBackdrop(_ frame: inout Frame, sim: AquariumSim, floorY: Int, palette: Palette) {
         for s in sim.backdrop {
+            let color = s.layer == 0
+                ? palette.silhouette.mixed(with: palette.night, 0.45)
+                : palette.silhouette
             for row in 0..<s.height {
                 let y = floorY - 1 - row
                 let shrink = row / 2
                 let x0 = s.x + shrink
                 let width = max(1, s.width - shrink * 2)
                 for x in x0..<(x0 + width) {
-                    frame.blend(x, y, palette.silhouette)
+                    frame.blend(x, y, color)
                 }
             }
         }
@@ -240,7 +275,7 @@ public enum Aquarium {
                 fin = k.fin
                 highlight = k.glow.mixed(with: RGBA(hex: 0xFFFFFF), 0.30)
                 accent = k.patch
-                tailCols = 2
+                tailCols = k.shape == .mermaid ? 0 : 2
             } else {
                 fin = style.fin
                 highlight = style.highlight
