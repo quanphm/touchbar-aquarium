@@ -136,15 +136,6 @@ public struct Palette {
         rayColor: RGBA(hex: 0x6AC8E0, alpha: 20), night: RGBA(hex: 0x02060C),
         silhouette: RGBA(hex: 0x061726), caustic: RGBA(hex: 0x8FD8FF, alpha: 26)
     )
-
-    /// Vivid reef: royal-blue water and pink sand.
-    public static let reef = Palette(
-        waterTop: RGBA(hex: 0x123C86), waterBottom: RGBA(hex: 0x2E82C8),
-        sandTop: RGBA(hex: 0xE8A6C0), sandLow: RGBA(hex: 0xC07898), sandSpeck: RGBA(hex: 0xF6C8DA),
-        plantBase: RGBA(hex: 0x1E7A5A), plantMid: RGBA(hex: 0x2E9B6A), plantTip: RGBA(hex: 0x6FC585),
-        rayColor: RGBA(hex: 0xCFE8FF, alpha: 22), night: RGBA(hex: 0x08203E),
-        silhouette: RGBA(hex: 0x0C2C6A), caustic: RGBA(hex: 0xFFFFFF, alpha: 34)
-    )
 }
 
 /// Every color and sprite in the tank. Kept in one place so the whole look is

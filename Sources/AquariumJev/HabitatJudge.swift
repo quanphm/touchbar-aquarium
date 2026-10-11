@@ -144,7 +144,7 @@ public struct HeuristicHabitatJudge: HabitatJudge {
             let decorOK = 1 - min(1, decorCount / 14)
             let openWater = clamp(0.6 * coverOK + 0.4 * decorOK)
             let focalPoint = focalScore(snap)
-            let themeCoherent = themeScore(snap, theme: context.theme)
+            let themeCoherent = themeScore(snap)
             let plantUtility = LayoutScorer.plantUtility(fromScore: plantBedScore(f.plantCoveragePct))
             let total = scorer.total(focalPoint: focalPoint, balance: balance, openWater: openWater,
                                      themeCoherent: themeCoherent, plantUtility: plantUtility)
@@ -159,12 +159,10 @@ public struct HeuristicHabitatJudge: HabitatJudge {
         return clamp((hasLargeRock ? 0.6 : 0.35) + (centerOccupied ? 0.4 : 0.0))
     }
 
-    private func themeScore(_ snap: LayoutSnapshot, theme: String) -> Double {
+    /// With only planted themes left, a planted bed with a few rocks reads right
+    /// for either of them.
+    private func themeScore(_ snap: LayoutSnapshot) -> Double {
         let f = snap.features
-        if theme == "reef" {
-            return clamp(0.4 + Double(f.coralCount + f.anemoneCount) / 8 * 0.6)
-        }
-        // Freshwater and deep sea: a planted bed with a few rocks reads right.
         return clamp(0.5 + Double(f.plantCount) / 30 * 0.3 + Double(f.rockCount) / 4 * 0.2)
     }
 

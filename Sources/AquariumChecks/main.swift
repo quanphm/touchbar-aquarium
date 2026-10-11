@@ -73,7 +73,7 @@ do {
     var cfg = TankConfig()
     cfg.satietyDecay = 0
     var sim = AquariumSim(config: cfg)
-    let isHunter: (Fish) -> Bool = { Art.species[$0.species].shape != .jelly }
+    let isHunter: (Fish) -> Bool = { !$0.isMermaid && Art.species[$0.species].shape != .jelly }
     var rounds = 0
     while sim.fish.contains(where: { isHunter($0) && $0.satiety < cfg.fullThreshold }), rounds < 60 {
         for f in sim.fish where isHunter(f) && f.satiety < cfg.fullThreshold {
@@ -97,7 +97,7 @@ do {
 // The tracker resets over time: a full fish grows hungry again.
 do {
     var sim = AquariumSim()
-    let isHunter: (Fish) -> Bool = { Art.species[$0.species].shape != .jelly }
+    let isHunter: (Fish) -> Bool = { !$0.isMermaid && Art.species[$0.species].shape != .jelly }
     var rounds = 0
     while sim.fish.contains(where: { isHunter($0) && $0.satiety < sim.config.fullThreshold }), rounds < 60 {
         for f in sim.fish where isHunter(f) && f.satiety < sim.config.fullThreshold {
@@ -111,6 +111,46 @@ do {
     let now = sim.fish.map { $0.satiety }.max() ?? 0
     check("satiety drains so fish get hungry again", now < peak - 0.4,
           "fullness \(String(format: "%.2f", peak)) -> \(String(format: "%.2f", now))")
+}
+
+// Mermaids are decorative: they never chase or eat a pellet, while the Kohaku
+// koi still feeds. Asserted on satiety rather than pellet counts, because any
+// hungry fish in the tank will chase a pellet dropped anywhere.
+do {
+    var cfg = TankConfig()
+    cfg.satietyDecay = 0
+    var sim = AquariumSim(config: cfg)
+    let mermaidKinds = sim.fish.filter(\.isMermaid).map(\.legendaryKind).sorted()
+    let koiKind = sim.fish.first { $0.isLegendary && !$0.isMermaid }?.legendaryKind
+    check("the tank has mermaids and a koi to test against",
+          mermaidKinds.count == 2 && koiKind != nil,
+          "\(mermaidKinds.count) mermaids, koi kind \(koiKind.map(String.init) ?? "nil")")
+
+    let sat: (Int) -> Double = { kind in
+        sim.fish.first { $0.legendaryKind == kind }?.satiety ?? -1
+    }
+    let feedOnto: (Int, Int) -> Void = { kind, rounds in
+        for _ in 0..<rounds {
+            guard let f = sim.fish.first(where: { $0.legendaryKind == kind }) else { return }
+            if f.satiety >= cfg.fullThreshold { return }
+            sim.feed(x: f.x)
+            run(&sim, seconds: 1.5)
+        }
+    }
+
+    if let kind = mermaidKinds.first {
+        let before = sat(kind)
+        feedOnto(kind, 40)
+        check("a mermaid never eats",
+              sat(kind) == before && before < cfg.fullThreshold,
+              "satiety \(String(format: "%.2f", before)) -> \(String(format: "%.2f", sat(kind)))")
+    }
+
+    if let kind = koiKind {
+        feedOnto(kind, 40)
+        check("the Kohaku koi still feeds", sat(kind) >= cfg.fullThreshold,
+              "satiety \(String(format: "%.2f", sat(kind)))")
+    }
 }
 
 // Poking scatters fish without breaking the world.
@@ -269,7 +309,7 @@ do {
         return AquariumSim(config: cfg)
     }
     let snaps = sims.map { LayoutSnapshot.extract(from: $0) }
-    let context = TankContext(theme: "reef", fishCount: sims[0].fish.count, width: sims[0].config.width)
+    let context = TankContext(theme: "freshwater", fishCount: sims[0].fish.count, width: sims[0].config.width)
     let judge = FallbackHabitatJudge(primary: BrokenJudge(), secondary: HeuristicHabitatJudge())
     let scores = (try? await judge.rank(snaps, context: context)) ?? []
     check("fallback judge recovers from a failure", scores.count == snaps.count)
@@ -361,6 +401,61 @@ do {
     check("plankton stays in the tank", sim.plankton.allSatisfy {
         $0.x >= 0 && $0.x <= Double(sim.config.width) && $0.y >= 0 && $0.y <= Double(sim.config.height)
     })
+}
+
+// Regression: fish must be able to get past each other. A "wedged" fish is one
+// sitting inside a neighbour's spacing radius while making no ground — the
+// symptom of two fish shoving head-on forever. This tank is 10px of water
+// against fish up to 18px long, so there is no room to slide out of the way
+// and the deadlock is easy to fall into.
+do {
+    let dt = 1.0 / 60.0
+    var sim = AquariumSim()
+    var anchor = [Double](repeating: 0, count: sim.fish.count)
+    var last = sim.fish.map { ($0.x, $0.y) }
+    var stall = [Double](repeating: 0, count: sim.fish.count)
+    var worstStall = 0.0
+    var worstLegendStall = 0.0
+    var worstWho = ""
+    var t = 0.0
+    while t < 240 {
+        sim.tick(dt: dt)
+        for i in 0..<sim.fish.count {
+            if t - anchor[i] >= 1.0 {
+                // Slide the measurement window forward, but never reset
+                // `stall` here — a wedged fish would then read as 1s forever.
+                anchor[i] = t
+                last[i] = (sim.fish[i].x, sim.fish[i].y)
+            }
+            let moved = abs(sim.fish[i].x - last[i].0) + abs(sim.fish[i].y - last[i].1)
+            var crowded = false
+            for j in 0..<sim.fish.count where j != i {
+                let dx = sim.fish[i].x - sim.fish[j].x
+                let dy = sim.fish[i].y - sim.fish[j].y
+                let minD = (sim.fish[i].radius + sim.fish[j].radius) * 1.15
+                if dx * dx + dy * dy < minD * minD { crowded = true; break }
+            }
+            if crowded && moved < 0.75 {
+                stall[i] += dt
+                if stall[i] > worstStall {
+                    worstStall = stall[i]
+                    let f = sim.fish[i]
+                    worstWho = f.isMermaid ? "mermaid" : (f.isLegendary ? "legendary" : "fish#\(i)/sp\(f.species)")
+                }
+                if sim.fish[i].isLegendary { worstLegendStall = max(worstLegendStall, stall[i]) }
+            } else {
+                stall[i] = 0
+            }
+        }
+        t += dt
+    }
+    check("no fish gets wedged against a neighbour", worstStall < 3.0,
+          "longest stuck run: \(String(format: "%.2f", worstStall))s (\(worstWho))")
+    // The legendary residents roam the whole tank rather than holding a home
+    // range, so they share the water with everything else and used to meet
+    // head-on far more than any other pair — they are the canary for this.
+    check("legendary residents never get stuck on each other", worstLegendStall < 3.0,
+          "longest stuck run: \(String(format: "%.2f", worstLegendStall))s")
 }
 
 print("\n\(checks - failures)/\(checks) checks passed")

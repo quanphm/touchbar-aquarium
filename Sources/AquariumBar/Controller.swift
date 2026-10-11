@@ -22,7 +22,7 @@ final class AquariumController: @unchecked Sendable {
 
     private var theme: Palette = .freshwater
     private var themeName: String = "freshwater"
-    private var followClock = true
+    private var followClock = false
 
     /// Ranks candidate habitats for "New Tank" (Jev with a heuristic fallback).
     private let judge: any HabitatJudge
@@ -40,7 +40,7 @@ final class AquariumController: @unchecked Sendable {
         // A fresh tank every launch: randomise the seed so the layout, the fish,
         // and the legendary roll differ each time. The sim stays deterministic
         // for a given seed, so tests and PNG previews reproduce.
-        sim = AquariumSim(config: AquariumController.makeConfig(palette: .freshwater, followClock: true, seed: nil))
+        sim = AquariumSim(config: AquariumController.makeConfig(palette: .freshwater, followClock: followClock, seed: nil))
     }
 
     /// Re-roll the tank, then keep the best of `candidateCount` layouts by the

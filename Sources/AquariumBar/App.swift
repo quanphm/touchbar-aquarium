@@ -38,13 +38,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var preview: PreviewWindowController?
     private var statusItem: NSStatusItem?
     private var alwaysOn = false
-    private var followClock = true
+    private var followClock = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller.start()
-        // A judged "New Tank" swaps the sim asynchronously; refresh the menu
-        // (legendary name) when it lands.
-        controller.onTankChanged = { [weak self] in self?.rebuildMenu() }
         setupStatusItem()
         LayoutLog.note("legendary", controller.sim.legendaryNames.joined(separator: ", "))
 
@@ -84,14 +81,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func rebuildMenu() {
         let menu = NSMenu()
 
-        let legends = controller.sim.legendaryNames
-        if !legends.isEmpty {
-            let legend = NSMenuItem(title: "Legendary residents: \(legends.joined(separator: ", "))", action: nil, keyEquivalent: "")
-            legend.isEnabled = false
-            menu.addItem(legend)
-            menu.addItem(.separator())
-        }
-
         let always = NSMenuItem(title: "Always show on Touch Bar", action: #selector(toggleAlwaysOn), keyEquivalent: "")
         always.state = alwaysOn ? .on : .off
         always.target = self
@@ -109,11 +98,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         freshwater.target = self
         let deepSea = NSMenuItem(title: "Deep Sea", action: #selector(useDeepSea), keyEquivalent: "")
         deepSea.target = self
-        let reef = NSMenuItem(title: "Reef", action: #selector(useReef), keyEquivalent: "")
-        reef.target = self
         themeMenu.addItem(freshwater)
         themeMenu.addItem(deepSea)
-        themeMenu.addItem(reef)
         themeItem.submenu = themeMenu
         menu.addItem(themeItem)
 
@@ -152,7 +138,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func useFreshwater() { applyTheme(.freshwater, named: "freshwater") }
     @objc private func useDeepSea() { applyTheme(.deepSea, named: "deepSea") }
-    @objc private func useReef() { applyTheme(.reef, named: "reef") }
 
     private func applyTheme(_ palette: Palette, named name: String) {
         controller.setTheme(palette, name: name)

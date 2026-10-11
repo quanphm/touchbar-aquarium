@@ -74,6 +74,21 @@ public struct Fish {
     public var growAt: Double = 150 // age at which a fry becomes an adult
     public var bold: Double = 0.5   // 0 shy .. 1 bold (dart rate)
     public var pace: Double = 1.0   // personal speed multiplier
+    /// Index of the fish this one is holding station for, or -1, plus the sim
+    /// time the yield began. Right of way is granted once and held until that
+    /// fish is genuinely past, rather than re-decided every tick — otherwise a
+    /// yielding pair oscillates between holding back and charging back in.
+    /// The start time is a safety valve: no fish may be parked indefinitely.
+    public var wayFrom: Int = -1
+    public var waySince: Double = 0
+
+    /// One of the mermaid legendary residents (not the Kohaku koi). Mermaids
+    /// don't feed — they drift and glow, and leave the food to the fish.
+    public var isMermaid: Bool {
+        guard isLegendary else { return false }
+        let kinds = Art.legendaryKinds
+        return kinds[((legendaryKind % kinds.count) + kinds.count) % kinds.count].shape == .mermaid
+    }
 }
 
 public struct Bubble {
@@ -371,7 +386,11 @@ public struct AquariumSim {
         for (kind, style) in Art.legendaryKinds.enumerated() {
             // The mermaid glides a bit quicker than the grand old koi.
             let speed: Double = style.shape == .mermaid ? 6.2 : 4.2
-            let homeY = minY + (maxY - minY) * 0.5
+            // Each legendary gets its own depth band. Sharing the mid-depth
+            // line meant the three of them crossed paths at the same height
+            // and met head-on far more often than they should.
+            let t = Double(kind) / Double(max(1, Art.legendaryKinds.count - 1))
+            let homeY = minY + (maxY - minY) * (0.25 + 0.5 * t)
             let x = rng.range(Double(minX + 20), Double(maxX - 40))
             let homeX = rng.range(minX + 50, maxX - 50)
             fish.append(Fish(
@@ -434,6 +453,98 @@ public struct AquariumSim {
         fish[i].retarget = rng.range(8.0, 16.0)
     }
 
+    /// A unit direction to push one fish away from another.
+    ///
+    /// Pushing straight down the line between them is exactly wrong for a
+    /// head-on meeting: both fish are already driving along that line, so the
+    /// push cancels their forward motion and they grind in place forever.
+    /// This tank has ~5px of usable depth against a minimum separation wider
+    /// than that, so there is no room to slide out of the way by shoving.
+    /// When the pair is closing, the push is rotated towards perpendicular to
+    /// the relative motion so they step aside and get past each other.
+    ///
+    /// The perpendicular keeps the sign that agrees with the current offset,
+    /// so a pair splits to opposite sides instead of both flipping across at
+    /// once and staying stuck together. Since the water column is barely
+    /// taller than a fish, that sideways lane is often blocked by the surface
+    /// or the sand — in which case we take the other side, and if both are
+    /// blocked we fall back to separating head-on rather than shoving into a
+    /// wall and pinning the pair there.
+    private static func passVector(dx: Double, dy: Double,
+                                   rvx: Double, rvy: Double,
+                                   y: Double,
+                                   yLo: Double, yHi: Double) -> (x: Double, y: Double) {
+        let d = (dx * dx + dy * dy).squareRoot()
+        guard d > 0.0001 else { return (1, 0) }
+        let ux = dx / d
+        let uy = dy / d
+        let rvLen = (rvx * rvx + rvy * rvy).squareRoot()
+        guard rvLen > 0.001 else { return (ux, uy) }
+        // Positive while the two are closing on each other.
+        let closing = -(rvx * ux + rvy * uy)
+        guard closing > 0 else { return (ux, uy) }
+        var px = -rvy / rvLen
+        var py = rvx / rvLen
+        if px * ux + py * uy < 0 { px = -px; py = -py }
+
+        // The water column is only ~5px tall, far less than the separation
+        // distance these fish need — so a sideways lane is a brief nudge, not
+        // somewhere to actually fit. Probe with a step that size; asking
+        // whether the fish could travel the full separation distance sideways
+        // always fails here and would silently drop us back to head-on shoving.
+        let nudge = 1.2
+        func fitsVertically() -> Bool {
+            let next = y + py * nudge
+            return next >= yLo && next <= yHi
+        }
+        // Only swing fully sideways once they are genuinely head-on; a
+        // glancing pass still separates normally.
+        var headOn = min(1.0, max(0.0, (closing - 0.25) / 1.0))
+        if !fitsVertically() {
+            px = -px
+            py = -py
+            if !fitsVertically() { headOn = 0 }
+        }
+        var nx = ux + (px - ux) * headOn
+        var ny = uy + (py - uy) * headOn
+        let nl = (nx * nx + ny * ny).squareRoot()
+        guard nl > 0.0001 else { return (ux, uy) }
+        return (nx / nl, ny / nl)
+    }
+
+    /// The neighbour this fish must give way to, if it is closing head-on with
+    /// one.
+    ///
+    /// Separation steering alone cannot resolve a head-on meeting in a tank
+    /// this short, so exactly one of the pair brakes. The rule is antisymmetric
+    /// — right of way goes to the quicker fish, with the lower index winning a
+    /// tie — so both fish reach the same verdict independently without having
+    /// to coordinate.
+    private func headOnConflict(_ i: Int) -> Int? {
+        for j in 0..<fish.count where j != i {
+            guard Art.species[fish[j].species].shape != .jelly else { continue }
+            let dx = fish[i].x - fish[j].x
+            let dy = fish[i].y - fish[j].y
+            let d2 = dx * dx + dy * dy
+            let reach = (fish[i].radius + fish[j].radius) * 2.2
+            guard d2 > 0.0001, d2 < reach * reach else { continue }
+            let d = d2.squareRoot()
+            let rvx = fish[i].vx - fish[j].vx
+            let rvy = fish[i].vy - fish[j].vy
+            let rvLen = (rvx * rvx + rvy * rvy).squareRoot()
+            guard rvLen > 0.5 else { continue }
+            let along = -(rvx * dx + rvy * dy)
+            // cosApproach: -1 means closing straight down the line between us,
+            // +1 means already pulling apart.
+            guard along / (rvLen * d) > 0.7, along / d > 0.8 else { continue }
+            let iHasWay = fish[i].speed != fish[j].speed
+                ? fish[i].speed > fish[j].speed
+                : i < j
+            return iHasWay ? nil : j
+        }
+        return nil
+    }
+
     private mutating func updateFish(_ dt: Double) {
         let n = fish.count
         guard n > 0 else { return }
@@ -472,9 +583,13 @@ public struct AquariumSim {
             var dvy = (dyT / max(0.001, distT)) * fish[i].speed * approach * 0.45
 
             // Soft pull toward home keeps each fish in its own region (the
-            // legendary resident roams free).
+            // legendary resident roams free). Clamped: an unclamped spring has
+            // a fixed point where it exactly cancels the seek force, and the
+            // fish parks there until its retarget timer expires — it looks
+            // wedged against a neighbour, but nothing is actually blocking it.
             if !fish[i].isLegendary {
-                dvx += (fish[i].homeX - fish[i].x) * 0.14
+                let homeDx = fish[i].homeX - fish[i].x
+                dvx += max(-0.6, min(0.6, homeDx * 0.14))
             }
 
             // Fish are lively in daylight and languid at night.
@@ -518,9 +633,67 @@ public struct AquariumSim {
                     dvy *= 1.9
                 }
             }
+            // Separation steering: anticipate neighbours and step aside when
+            // closing, instead of only being pushed apart after overlapping.
+            var sepX = 0.0, sepY = 0.0, sepW = 0.0
+            let sepReach = 26.0
+            for j in 0..<n where j != i {
+                guard Art.species[fish[j].species].shape != .jelly else { continue }
+                let ox = fish[i].x - fish[j].x
+                let oy = fish[i].y - fish[j].y
+                let d = (ox * ox + oy * oy).squareRoot()
+                guard d < sepReach else { continue }
+                let (px, py) = AquariumSim.passVector(
+                    dx: ox, dy: oy,
+                    rvx: fish[i].vx - fish[j].vx,
+                    rvy: fish[i].vy - fish[j].vy,
+                    y: fish[i].y, yLo: minY, yHi: maxY
+                )
+                let urgency = 1 - d / sepReach
+                sepX += px * urgency
+                sepY += py * urgency
+                sepW += urgency
+            }
+
+            // Right of way. A head-on meeting can't be resolved by shoving in
+            // a tank with ~5px of depth, so one fish holds station until the
+            // other is through. Only the drive is braked — the separation
+            // force still applies, so the yielding fish steps aside instead of
+            // parking in the way.
+            let giving = fish[i].wayFrom
+            if giving >= 0 && giving < n {
+                let dx = fish[i].x - fish[giving].x
+                let clear = (fish[i].radius + fish[giving].radius) * 2.0
+                // Resume once the other fish has drawn level and moved off, or
+                // has simply gone far enough past. Without the receding test
+                // a fish stays parked for as long as anything swims nearby.
+                let receding = fish[giving].vx * dx > 0
+                if abs(dx) > clear || receding || time - fish[i].waySince > 4.0 {
+                    fish[i].wayFrom = -1
+                }
+            } else {
+                fish[i].wayFrom = -1
+            }
+            if fish[i].wayFrom < 0, let blocker = headOnConflict(i) {
+                fish[i].wayFrom = blocker
+                fish[i].waySince = time
+            }
+            if fish[i].wayFrom >= 0 {
+                dvx *= 0.2
+                dvy *= 0.2
+            }
+            if sepW > 0.001 {
+                // Weighted average of the neighbours' push directions, so one
+                // close fish dominates rather than many distant ones summing.
+                dvx += (sepX / sepW) * fish[i].speed * 0.6
+                dvy += (sepY / sepW) * fish[i].speed * 0.6
+            }
+
             // Only hungry fish chase food. A fish that is full ignores pellets
-            // until its satiety has drained back below the threshold.
-            if fish[i].satiety < config.fullThreshold, let target = nearestPellet(to: fish[i]) {
+            // until its satiety has drained back below the threshold. Mermaids
+            // never feed at all.
+            if !fish[i].isMermaid, fish[i].satiety < config.fullThreshold,
+               let target = nearestPellet(to: fish[i]) {
                 let dx = target.x - fish[i].x
                 let dy = target.y - fish[i].y
                 let d = max(0.001, (dx * dx + dy * dy).squareRoot())
@@ -589,14 +762,27 @@ public struct AquariumSim {
                 let dy = fish[i].y - fish[j].y
                 let minD = (fish[i].radius + fish[j].radius) * 1.15
                 let d2 = dx * dx + dy * dy
-                guard d2 > 0.0001, d2 < minD * minD else { continue }
+                guard d2 < minD * minD else { continue }
+                if d2 <= 0.0001 {
+                    // Exactly coincident: any direction we pick from dx/dy is
+                    // noise, and skipping here welded them together for good.
+                    fish[i].x += 0.2
+                    fish[j].x -= 0.2
+                    continue
+                }
                 let d = d2.squareRoot()
                 let overlap = (minD - d) * 0.5
                 // Cap the per-tick correction: an uncapped push can move a fish
                 // 100s of px/s and scramble the whole tank.
                 let step = min(overlap, 0.35)
-                let ux = dx / d
-                let uy = dy / d
+                // Same sideways-swing as the steering, so the fixup reinforces
+                // the pass instead of cancelling it.
+                let (ux, uy) = AquariumSim.passVector(
+                    dx: dx, dy: dy,
+                    rvx: fish[i].vx - fish[j].vx,
+                    rvy: fish[i].vy - fish[j].vy,
+                    y: (fish[i].y + fish[j].y) / 2, yLo: minY, yHi: maxY
+                )
                 fish[i].x += ux * step
                 fish[i].y += uy * step
                 fish[j].x -= ux * step
@@ -916,13 +1102,13 @@ public struct AquariumSim {
         // Coral formations (and the odd anemone).
         var x = 12
         while x < config.width - 12 {
-            if rng.unit() < 0.7 {
+            if rng.unit() < 0.45 {
                 let kind = rng.unit() < 0.22 ? 5 : (2 + rng.int(3))
                 decor.append(Decor(kind: kind,
                                    variant: rng.int(Art.coralPalette.count),
                                    x: x))
             }
-            x += rng.int(26) + 32
+            x += rng.int(50) + 35
         }
         // One or two sand castles on the sand.
         let castles = 1 + (rng.unit() < 0.5 ? 1 : 0)

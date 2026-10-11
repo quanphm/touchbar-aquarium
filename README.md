@@ -41,8 +41,7 @@ in bursts; the puffer inflates when startled), and switchable **themes**
 
 Every tank includes **three legendary residents**, wreathed in a soft glow and
 trailing sparkles, gliding freely and grander than the rest: a red-and-white
-***Kohaku*** koi, a ***Rainbow Mermaid***, and a ***Purple Mermaid***. Their
-names show in the menu-bar menu.
+***Kohaku*** koi, a ***Rainbow Mermaid***, and a ***Purple Mermaid***.
 
 Render it to PNG:
 
@@ -56,9 +55,6 @@ Switch live from the menu-bar **Theme** submenu.
 
 **Freshwater**
 ![Freshwater theme](out/freshwater.png)
-
-**Reef** — royal-blue water over pink sand
-![Reef theme](out/reef.png)
 
 **Deep Sea** — cold and bioluminescent
 ![Deep Sea theme](out/deep-sea.png)
@@ -90,7 +86,7 @@ menu bar**:
 
 - **Always show on Touch Bar** — toggle the system-modal mode (on by default).
 - **Show Preview Window** — a normal window with the same tank.
-- **Theme** — switch between *Freshwater*, *Deep Sea*, and *Reef* (royal-blue water + pink sand).
+- **Theme** — switch between *Freshwater* and *Deep Sea*.
 - **New Tank** — re-roll a whole fresh tank (new layout, fish, and legendary).
   Six candidate layouts are generated and the best is chosen by **Jev** (see
   *Smart habitat* below), falling back to on-device heuristics with no key.

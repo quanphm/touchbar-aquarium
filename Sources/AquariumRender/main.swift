@@ -83,7 +83,6 @@ if opts.legendary { config.legendaryChance = 1.0 }
 if let h = opts.hour { config.startHour = h }
 switch opts.theme.lowercased() {
 case "deep", "deepsea", "deep-sea": config.palette = .deepSea
-case "reef": config.palette = .reef
 default: config.palette = .freshwater
 }
 var sim = AquariumSim(config: config)
