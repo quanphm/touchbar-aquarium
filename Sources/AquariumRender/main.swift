@@ -19,6 +19,8 @@ struct Options {
     var theme = "freshwater"
     var hour: Double?     // pin the time of day (0..24)
     var sprites = false   // render a lineup of key sprites instead of the tank
+    var viewport: Int?    // render only a window this wide (art px), scrolled
+    var camera: Int = 0   // art-px offset of that window
 }
 
 func parseArgs() -> Options {
@@ -38,6 +40,8 @@ func parseArgs() -> Options {
         case "--theme": i += 1; if i < args.count { o.theme = args[i] }
         case "--hour": i += 1; if i < args.count { o.hour = Double(args[i]) }
         case "--sprites": o.sprites = true
+        case "--viewport": i += 1; if i < args.count, let v = Int(args[i]) { o.viewport = v }
+        case "--camera": i += 1; if i < args.count { o.camera = Int(args[i]) ?? o.camera }
         default: break
         }
         i += 1
@@ -96,8 +100,14 @@ while t < opts.warmup {
 // Capture frames.
 var frames: [Frame] = []
 for _ in 0..<max(1, opts.strip) {
-    var f = Frame(width: sim.config.width, height: sim.config.height)
-    Aquarium.render(sim, into: &f)
+    var f: Frame
+    if let vw = opts.viewport {
+        f = Frame(width: vw, height: sim.config.height)
+        Aquarium.render(sim, into: &f, cameraX: opts.camera)
+    } else {
+        f = Frame(width: sim.config.width, height: sim.config.height)
+        Aquarium.render(sim, into: &f)
+    }
     frames.append(f)
 
     var s = 0.0

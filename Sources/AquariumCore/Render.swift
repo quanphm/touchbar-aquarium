@@ -4,6 +4,24 @@ import Foundation
 /// A CLI uses it to emit PNGs; the AppKit view uses it to fill the bar.
 public enum Aquarium {
     public static func render(_ sim: AquariumSim, into frame: inout Frame) {
+        renderFull(sim, into: &frame)
+    }
+
+    /// Render a window `frame.width` wide of a (possibly wider) tank, scrolled to
+    /// `cameraX` art pixels. Lets a long tank pan through a narrow view.
+    public static func render(_ sim: AquariumSim, into frame: inout Frame, cameraX: Int) {
+        var full = Frame(width: sim.config.width, height: sim.config.height)
+        renderFull(sim, into: &full)
+        let maxX = max(0, sim.config.width - frame.width)
+        let cx = max(0, min(maxX, cameraX))
+        for y in 0..<frame.height {
+            for x in 0..<frame.width {
+                frame.set(x, y, full.get(x + cx, y))
+            }
+        }
+    }
+
+    private static func renderFull(_ sim: AquariumSim, into frame: inout Frame) {
         let w = frame.width
         let h = frame.height
         let floorY = sim.floorY

@@ -15,6 +15,11 @@ final class AquariumController: @unchecked Sendable {
     private var lastTime = CACurrentMediaTime()
     private let fps: Double = 30
 
+    /// Horizontal camera over the (wider) tank. The user scrolls it (Touch Bar
+    /// drag, or the preview window's scroll wheel); it never moves on its own.
+    private(set) var cameraX: Double = 0
+    private let viewportArtWidth: Double = 360   // nominal visible width
+
     private var theme: Palette = .freshwater
     private var themeName: String = "freshwater"
     private var followClock = true
@@ -114,6 +119,17 @@ final class AquariumController: @unchecked Sendable {
         for view in observers.allObjects where (view as? TankView)?.isOnScreen ?? true {
             view.setNeedsDisplay(view.bounds)
         }
+    }
+
+    // MARK: - Camera
+
+    /// The art-space x the visible window starts at.
+    var cameraOffset: Int { Int(cameraX.rounded()) }
+
+    /// Scroll the camera by `dx` art pixels, clamped to the tank.
+    func scrollCamera(by dx: Double) {
+        let maxX = max(0, Double(sim.config.width) - viewportArtWidth)
+        cameraX = max(0, min(maxX, cameraX + dx))
     }
 
     // MARK: - Interaction

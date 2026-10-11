@@ -14,7 +14,8 @@ final class TankView: NSView {
     init(controller: AquariumController, tag: String = "") {
         self.controller = controller
         self.logTag = tag
-        self.artFrame = Frame(width: controller.sim.config.width, height: controller.sim.config.height)
+        // Sized to the visible window in `draw`; 1px placeholder until then.
+        self.artFrame = Frame(width: 1, height: controller.sim.config.height)
         super.init(frame: .zero)
         wantsLayer = true
         layer?.backgroundColor = NSColor.black.cgColor
@@ -48,9 +49,14 @@ final class TankView: NSView {
         max(1, (bounds.height / CGFloat(controller.sim.config.height)).rounded(.down))
     }
 
+    /// How much of the (wider) tank fits on screen, in art pixels.
+    private var viewportWidth: Int {
+        max(1, min(controller.sim.config.width, Int((bounds.width / scale).rounded(.down))))
+    }
+
     private var imageRect: NSRect {
         let s = scale
-        let w = CGFloat(controller.sim.config.width) * s
+        let w = CGFloat(viewportWidth) * s
         let h = CGFloat(controller.sim.config.height) * s
         return NSRect(x: (bounds.width - w) / 2, y: (bounds.height - h) / 2, width: w, height: h)
     }
@@ -58,7 +64,7 @@ final class TankView: NSView {
     private func artX(for pointX: CGFloat) -> Double {
         let rect = imageRect
         guard rect.width > 0 else { return 0 }
-        return Double((pointX - rect.minX) / scale)
+        return Double(controller.cameraOffset) + Double((pointX - rect.minX) / scale)
     }
 
     // MARK: - Drawing
@@ -70,7 +76,11 @@ final class TankView: NSView {
         ctx.setFillColor(NSColor.black.cgColor)
         ctx.fill(bounds)
 
-        Aquarium.render(controller.sim, into: &artFrame)
+        let vw = viewportWidth
+        if artFrame.width != vw || artFrame.height != controller.sim.config.height {
+            artFrame = Frame(width: vw, height: controller.sim.config.height)
+        }
+        Aquarium.render(controller.sim, into: &artFrame, cameraX: controller.cameraOffset)
         guard let img = TankView.makeCGImage(artFrame) else { return }
         ctx.draw(img, in: imageRect)
     }
@@ -89,24 +99,68 @@ final class TankView: NSView {
     }
 
     // MARK: - Interaction
-    // Preview window: a click drops food; right-click taps the glass.
+    // Preview window: click drops food, drag pans, right-click taps the glass.
+    // Touch Bar: tap drops food, drag pans.
+
+    private var dragStartX: CGFloat?
+    private var lastX: CGFloat?
+    private var didPan = false
 
     override func mouseDown(with event: NSEvent) {
-        let p = convert(event.locationInWindow, from: nil)
-        controller.feed(atArtX: artX(for: p.x))
+        let x = convert(event.locationInWindow, from: nil).x
+        dragStartX = x; lastX = x; didPan = false
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        let x = convert(event.locationInWindow, from: nil).x
+        pan(from: lastX, to: x); lastX = x
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        defer { dragStartX = nil; lastX = nil; didPan = false }
+        guard !didPan else { return }
+        controller.feed(atArtX: artX(for: convert(event.locationInWindow, from: nil).x))
     }
 
     override func rightMouseDown(with event: NSEvent) {
-        let p = convert(event.locationInWindow, from: nil)
-        controller.poke(atArtX: artX(for: p.x))
+        let x = convert(event.locationInWindow, from: nil).x
+        controller.poke(atArtX: artX(for: x))
     }
 
-    // Touch Bar: direct touches arrive here.
+    // Preview window: scroll horizontally to pan the (wider) tank.
+    override func scrollWheel(with event: NSEvent) {
+        controller.scrollCamera(by: Double(event.scrollingDeltaX) * 2)
+    }
+
+    // Touch Bar: direct touches arrive here. Tap feeds, drag pans.
     override func touchesBegan(with event: NSEvent) {
-        let touches = event.touches(matching: .began, in: self)
-        guard let touch = touches.first else { return }
-        let p = touch.location(in: self)
-        controller.feed(atArtX: artX(for: p.x))
+        guard let touch = event.touches(matching: .began, in: self).first else { return }
+        let x = touch.location(in: self).x
+        dragStartX = x; lastX = x; didPan = false
+    }
+
+    override func touchesMoved(with event: NSEvent) {
+        guard let touch = event.touches(matching: .moved, in: self).first else { return }
+        let x = touch.location(in: self).x
+        pan(from: lastX, to: x); lastX = x
+    }
+
+    override func touchesEnded(with event: NSEvent) {
+        defer { dragStartX = nil; lastX = nil; didPan = false }
+        guard !didPan, let start = dragStartX else { return }
+        controller.feed(atArtX: artX(for: start))
+    }
+
+    override func touchesCancelled(with event: NSEvent) {
+        dragStartX = nil; lastX = nil; didPan = false
+    }
+
+    /// Pan the camera by a horizontal drag, so the content follows the finger.
+    private func pan(from previousX: CGFloat?, to x: CGFloat) {
+        guard let prev = previousX else { return }
+        if let start = dragStartX, abs(x - start) > 3 { didPan = true }
+        guard didPan else { return }
+        controller.scrollCamera(by: -Double((x - prev) / scale))
     }
 }
 

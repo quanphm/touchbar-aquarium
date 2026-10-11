@@ -95,6 +95,9 @@ menu bar**:
 A **fish icon is also added to the Control Strip** (right side of the Touch
 Bar); tap it to re-show the tank if it ever gets covered.
 
+The tank is wider than the Touch Bar and **scrolls horizontally** — drag on the
+bar, or scroll horizontally in the preview window.
+
 
 ## Smart habitat (TypeSafe / Jev)
 
@@ -174,7 +177,8 @@ swift run aquarium-render --strip 6 --step 0.6 --out out/strip.png --scale 3
 ```
 
 Options: `--strip N` frames, `--step` seconds between them, `--warmup` seconds
-before capture, `--scale` integer upscale, `--feed X` drop food at column X.
+before capture, `--scale` integer upscale, `--feed X` drop food at column X,
+`--viewport W --camera X` render a W-wide window of the wide tank.
 
 ## Checks
 
@@ -205,7 +209,9 @@ they can never drift apart.
 ## Touch Bar facts (measured on MacBookPro17,1 / 13" M1)
 
 - Principal item area: **1085 × 30 pt** when the control strip is visible.
-- Art canvas is **360 × 10**, drawn at integer 3× → 1080 × 30.
+- The tank is **1080 × 10** art px. The Touch Bar shows a **~360 × 10** window
+  of it at integer 3× (→ 1080 × 30) and **scrolls horizontally** across the
+  rest, giving the fish more room to roam than fits on screen at once.
 
 ## Roadmap
 

@@ -3,7 +3,9 @@ import Foundation
 /// Static knobs for the tank. Art-space units: 1 unit == 1 pixel of the small
 /// canvas the renderer draws into (the host scales that up for the bar).
 public struct TankConfig {
-    public var width: Int = 360
+    /// The full tank width. The Touch Bar shows a ~360-wide window of it and
+    /// pans across, so a wide tank holds many more fish without crowding.
+    public var width: Int = 1080
     public var height: Int = 10
     public var floorHeight: Int = 2
     public var fishCount: Int = 7
@@ -171,10 +173,13 @@ public struct AquariumSim {
     public init(config: TankConfig = TankConfig()) {
         self.config = config
         self.rng = SeededRandom(seed: config.seed)
-        let cx = config.width / 2
+        // Evenly spaced bubbling columns across the (wide) tank.
         let margin = 6
-        self.bubblers = [cx, cx - 78, cx + 84, config.width - 34]
-            .map { max(margin, min(config.width - margin, $0)) }
+        let columns = 7
+        self.bubblers = (0..<columns).map { i in
+            let frac = (Double(i) + 0.5) / Double(columns)
+            return max(margin, min(config.width - margin, Int(Double(config.width) * frac)))
+        }
         self.clockHour = config.startHour
         self.daylight = AquariumSim.computeDaylight(config.startHour)
         scatterFish()
