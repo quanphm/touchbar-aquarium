@@ -325,10 +325,15 @@ ooooooooo
 
     // MARK: - Cleanup crew
 
+    // A green garden snail, 9x6: a round spiral shell, a dark head with a bright
+    // eye on the right, and an orange foot. Faces right.
     static let snailShape = """
-.oooo.
-oooooo
-bbbbbb
+..ooooo..
+.oGGGgo..
+oGggGgddo
+oGgGggddy
+.oGGGddo.
+fffffffff
 """
 
     static let shrimpShape = """
@@ -336,14 +341,27 @@ bbbbbb
 ffoooo
 """
 
+    private static var critterCache: [Int: PixelSprite] = [:]
+
     public static func critterSprite(_ kind: Int) -> PixelSprite {
+        if let cached = critterCache[kind] { return cached }
+        let sprite: PixelSprite
         if kind == 0 {
-            return PixelSprite(art: snailShape, ["o": snailShell, "b": snailBody])
+            sprite = PixelSprite(art: snailShape, [
+                "o": critterOutline,
+                "g": snailShellDark,
+                "G": snailShellLight,
+                "d": snailBody,
+                "y": snailEye,
+                "f": snailFoot,
+            ])
+        } else if kind == 2 {
+            sprite = PixelSprite(art: starfishShape, ["s": starfishBody, "S": starfishHi])
+        } else {
+            sprite = PixelSprite(art: shrimpShape, ["o": shrimpBody, "f": shrimpFin])
         }
-        if kind == 2 {
-            return PixelSprite(art: starfishShape, ["s": starfishBody, "S": starfishHi])
-        }
-        return PixelSprite(art: shrimpShape, ["o": shrimpBody, "f": shrimpFin])
+        critterCache[kind] = sprite
+        return sprite
     }
 
     // MARK: - Extra creatures & decor
@@ -371,8 +389,18 @@ ttttttt
         coralSprite(anemoneShape, variant)
     }
 
-    public static let snailShell = RGBA(hex: 0x9B7B45)
-    public static let snailBody = RGBA(hex: 0xCBB487)
+    /// Shared dark outline so the bottom-dwellers read against the sand.
+    public static let critterOutline = RGBA(hex: 0x3A2030)
+
+    /// Green garden snail: dark/light shell greens, a very dark head, a bright
+    /// eye, and an orange foot.
+    public static let snailShellDark = RGBA(hex: 0x2E5B2F)
+    public static let snailShellLight = RGBA(hex: 0x6FBF3F)
+    public static let snailBody = RGBA(hex: 0x1B3B1E)
+    public static let snailEye = RGBA(hex: 0xF2D24B)
+    public static let snailFoot = RGBA(hex: 0xE0913A)
+
+    /// Salmon shrimp.
     public static let shrimpBody = RGBA(hex: 0xE8A6A0)
     public static let shrimpFin = RGBA(hex: 0xC96A64)
 

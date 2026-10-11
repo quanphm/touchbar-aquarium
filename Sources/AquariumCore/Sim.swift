@@ -605,17 +605,21 @@ public struct AquariumSim {
     // MARK: - Cleanup crew
 
     private mutating func seedCritters() {
+        // Anchor each critter on the sand by its sprite height.
+        let snailY = Double(floorY) - Double(Art.critterSprite(0).height)
+        let shrimpY = Double(floorY) - Double(Art.critterSprite(1).height)
+        let starfishY = Double(floorY) - Double(Art.critterSprite(2).height)
         // One snail, two shrimp, one starfish.
         critters.append(Critter(kind: 0, x: rng.range(30, Double(config.width - 30)),
-                                y: Double(floorY) - 3, vx: rng.range(0.8, 1.8),
+                                y: snailY, vx: rng.range(0.8, 1.8),
                                 phase: 0, timer: rng.range(2, 6)))
         for _ in 0..<2 {
             critters.append(Critter(kind: 1, x: rng.range(30, Double(config.width - 30)),
-                                    y: Double(floorY) - 2, vx: 0,
+                                    y: shrimpY, vx: 0,
                                     phase: rng.range(0, 6.28), timer: rng.range(0.5, 2)))
         }
         critters.append(Critter(kind: 2, x: rng.range(40, Double(config.width - 40)),
-                                y: Double(floorY) - 5, vx: 0,
+                                y: starfishY, vx: 0,
                                 phase: rng.range(0, 6.28), timer: rng.range(3, 10)))
     }
 
@@ -630,7 +634,7 @@ public struct AquariumSim {
                     critters[i].vx = rng.unit() < 0.4 ? 0 : rng.range(0.7, 1.6) * (rng.unit() < 0.5 ? -1 : 1)
                 }
                 critters[i].x += critters[i].vx * dt
-                critters[i].y = Double(floorY) - 3
+                critters[i].y = Double(floorY) - Double(Art.critterSprite(0).height)
             } else if critters[i].kind == 2 {
                 // Starfish: sits still, occasionally creeps an inch.
                 if critters[i].timer <= 0 {
@@ -639,7 +643,7 @@ public struct AquariumSim {
                 }
                 critters[i].x += critters[i].vx * dt
                 critters[i].vx *= max(0, 1 - 2 * dt)
-                critters[i].y = Double(floorY) - 5
+                critters[i].y = Double(floorY) - Double(Art.critterSprite(2).height)
             } else {
                 // Shrimp: hop-scotches along the sand in little bursts.
                 if critters[i].timer <= 0 {
@@ -649,7 +653,7 @@ public struct AquariumSim {
                 critters[i].x += critters[i].vx * dt
                 critters[i].vx *= max(0, 1 - 3 * dt)
                 let hop = abs(critters[i].vx) > 0.6 ? abs(sin(critters[i].phase * 4)) * 1.6 : 0
-                critters[i].y = Double(floorY) - 2 - hop
+                critters[i].y = Double(floorY) - Double(Art.critterSprite(1).height) - hop
             }
             let lo = 6.0
             let hi = Double(config.width) - 8

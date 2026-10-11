@@ -13,7 +13,7 @@ final class AquariumController: @unchecked Sendable {
     private let observers = NSHashTable<NSView>.weakObjects()
     private var timer: Timer?
     private var lastTime = CACurrentMediaTime()
-    private let fps: Double = 20
+    private let fps: Double = 30
 
     private var theme: Palette = .freshwater
     private var themeName: String = "freshwater"
