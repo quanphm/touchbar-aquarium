@@ -20,6 +20,13 @@ public struct TankConfig {
     /// Environment palette (theme).
     public var palette: Palette = .freshwater
 
+    /// Hidden per-fish satiety. Fullness drains at this rate (units/second),
+    /// so a fish that has eaten grows hungry again after a while.
+    /// With the default `fullThreshold`, a full fish ignores food for ~1 minute.
+    public var satietyDecay: Double = 0.2 / 60.0
+    /// A fish at or above this fullness ignores food until it digests.
+    public var fullThreshold: Double = 0.8
+
     public init() {}
 }
 
@@ -32,7 +39,10 @@ public struct Fish {
     public var facing: Int      // -1 left, +1 right
     public var phase: Double    // animation phase
     public var speed: Double    // preferred cruise speed
-    public var hunger: Double   // 0..1
+    /// Hidden satiety tracker: 0 = starving, 1 = full. A full fish ignores
+    /// food; it drains over time (`TankConfig.satietyDecay`) so it hungers
+    /// again after a period.
+    public var satiety: Double
     public var homeY: Double    // preferred depth (art-space y)
     public var homeX: Double    // territory center (keeps the tank spread out)
     public var radius: Double   // sprite half-width, for spacing
@@ -256,7 +266,7 @@ public struct AquariumSim {
                 facing: dir < 0 ? -1 : 1,
                 phase: rng.range(0, 6.28),
                 speed: rng.range(4.2, 7.2) * style.speedScale,
-                hunger: rng.range(0.4, 1.0),
+                satiety: rng.range(0.2, 0.7),
                 homeY: homeY,
                 homeX: homeX,
                 radius: Double(Art.fishSprite(speciesIndex).width) * 0.5,
@@ -284,7 +294,7 @@ public struct AquariumSim {
             facing: 1,
             phase: rng.range(0, 6.28),
             speed: 3.6,
-            hunger: 0.8,
+            satiety: 0.5,
             homeY: homeY,
             homeX: homeX,
             radius: Double(Art.legendarySprite(kind).width) * 0.5,
@@ -377,16 +387,18 @@ public struct AquariumSim {
                     dvy *= 1.9
                 }
             }
-            if let target = nearestPellet(to: fish[i]) {
+            // Only hungry fish chase food. A fish that is full ignores pellets
+            // until its satiety has drained back below the threshold.
+            if fish[i].satiety < config.fullThreshold, let target = nearestPellet(to: fish[i]) {
                 let dx = target.x - fish[i].x
                 let dy = target.y - fish[i].y
                 let d = max(0.001, (dx * dx + dy * dy).squareRoot())
-                let pull = 26 * (0.6 + 0.4 * (1 - fish[i].hunger))
+                let pull = 26 * (0.6 + 0.4 * (1 - fish[i].satiety))
                 dvx += (dx / d) * pull
                 dvy += (dy / d) * pull
                 if d < 1.8 {
                     eatPellet(near: fish[i])
-                    fish[i].hunger = 1.0
+                    fish[i].satiety = 1.0
                 }
             }
 
@@ -425,7 +437,8 @@ public struct AquariumSim {
             else if fish[i].vx < -0.5 { fish[i].facing = -1 }
 
             fish[i].phase += dt * (abs(fish[i].vx) * 0.35 + 1.5)
-            fish[i].hunger = max(0, fish[i].hunger - dt * 0.03)
+            // Fullness drains, so a full fish eventually gets hungry again.
+            fish[i].satiety = max(0, fish[i].satiety - dt * config.satietyDecay)
         }
 
         relaxSpacing()

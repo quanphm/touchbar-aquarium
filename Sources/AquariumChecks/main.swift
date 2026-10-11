@@ -1,5 +1,6 @@
 import Foundation
 import AquariumCore
+import AquariumJev
 
 // A tiny test runner proving the deep module's contract through its interface.
 // These are the same checks you'd write in XCTest; they just run on Command
@@ -64,6 +65,52 @@ do {
     check("feed() adds a pellet", sim.pellets.count == 1, "got \(sim.pellets.count)")
     run(&sim, seconds: 25)
     check("pellet is consumed or expires", sim.pellets.isEmpty, "\(sim.pellets.count) left")
+}
+
+// Hidden satiety tracker: feeding fills it, and a full fish ignores food.
+// (Decay is disabled here so the check isolates the "full" gate.)
+do {
+    var cfg = TankConfig()
+    cfg.satietyDecay = 0
+    var sim = AquariumSim(config: cfg)
+    let isHunter: (Fish) -> Bool = { Art.species[$0.species].shape != .jelly }
+    var rounds = 0
+    while sim.fish.contains(where: { isHunter($0) && $0.satiety < cfg.fullThreshold }), rounds < 60 {
+        for f in sim.fish where isHunter(f) && f.satiety < cfg.fullThreshold {
+            sim.feed(x: f.x)
+        }
+        run(&sim, seconds: 1.5)
+        rounds += 1
+    }
+    let full = sim.fish.filter { isHunter($0) && $0.satiety >= cfg.fullThreshold }.count
+    let hunters = sim.fish.filter(isHunter).count
+    check("feeding fills each fish's satiety", full == hunters, "\(full)/\(hunters) full")
+
+    // Everyone full -> a fresh pellet sits untouched.
+    let before = sim.pellets.count
+    sim.feed(x: Double(sim.config.width) / 2)
+    run(&sim, seconds: 3)
+    check("a full fish won't chase food", sim.pellets.count >= before + 1,
+          "pellet eaten while full (\(before) -> \(sim.pellets.count))")
+}
+
+// The tracker resets over time: a full fish grows hungry again.
+do {
+    var sim = AquariumSim()
+    let isHunter: (Fish) -> Bool = { Art.species[$0.species].shape != .jelly }
+    var rounds = 0
+    while sim.fish.contains(where: { isHunter($0) && $0.satiety < sim.config.fullThreshold }), rounds < 60 {
+        for f in sim.fish where isHunter(f) && f.satiety < sim.config.fullThreshold {
+            sim.feed(x: f.x)
+        }
+        run(&sim, seconds: 1.5)
+        rounds += 1
+    }
+    let peak = sim.fish.map { $0.satiety }.max() ?? 0
+    run(&sim, seconds: 180)   // no more food; let fullness drain
+    let now = sim.fish.map { $0.satiety }.max() ?? 0
+    check("satiety drains so fish get hungry again", now < peak - 0.4,
+          "fullness \(String(format: "%.2f", peak)) -> \(String(format: "%.2f", now))")
 }
 
 // Poking scatters fish without breaking the world.
@@ -138,6 +185,116 @@ do {
     run(&has, seconds: 30)
     let inside = has.fish.allSatisfy { $0.x >= 0 && $0.x <= Double(has.config.width) }
     check("legendary stays in bounds", inside)
+}
+
+// MARK: - Habitat layout judge
+
+func makeScore(_ id: Int, _ total: Double) -> CandidateScore {
+    CandidateScore(id: id, focalPoint: 0.5, balance: 0.5, openWater: 0.5,
+                   themeCoherent: 0.5, plantUtility: 0.5, total: total)
+}
+
+// A layout snapshot is a pure function of the seed.
+do {
+    let a = LayoutSnapshot.extract(from: AquariumSim())
+    let b = LayoutSnapshot.extract(from: AquariumSim())
+    check("layout snapshot is deterministic for a seed", a == b)
+    check("snapshot describes the habitat", !a.placements.isEmpty && a.features.plantCount > 0)
+}
+
+// Plant-bed utility peaks at "comfortable", not "overgrown".
+do {
+    let u = LayoutScorer.plantUtility(fromScore:)
+    check("plant utility peaks at comfortable",
+          u(1) > u(0) && u(1) > u(2) && u(1) > u(3))
+    check("overgrown plants score worse than sparse", u(3) < u(0))
+}
+
+// Selection: highest total wins; ties and gaps resolve to the lowest id.
+do {
+    let scores = [makeScore(0, 0.4), makeScore(1, 0.9), makeScore(2, 0.7)]
+    check("selection picks the highest total", LayoutSelection.bestIndex(scores, candidateCount: 3) == 1)
+    check("selection defaults to 0 with no scores", LayoutSelection.bestIndex([], candidateCount: 3) == 0)
+    let tie = [makeScore(0, 0.5), makeScore(1, 0.5)]
+    check("ties resolve to the lowest id", LayoutSelection.bestIndex(tie, candidateCount: 2) == 0)
+    let stray = [makeScore(9, 1.0)]
+    check("out-of-range ids are ignored", LayoutSelection.bestIndex(stray, candidateCount: 2) == 0)
+}
+
+// The offline heuristic judge answers one score per candidate, within 0…1,
+// and is deterministic.
+do {
+    let sims = (0..<4).map { k -> AquariumSim in
+        var cfg = TankConfig(); cfg.seed = UInt64(k) + 1
+        return AquariumSim(config: cfg)
+    }
+    let snaps = sims.map { LayoutSnapshot.extract(from: $0) }
+    let context = TankContext(theme: "freshwater", fishCount: sims[0].fish.count, width: sims[0].config.width)
+    let judge = HeuristicHabitatJudge()
+    let a = judge.score(snaps, context: context)
+    let b = judge.score(snaps, context: context)
+    check("heuristic judge scores every candidate", a.count == snaps.count)
+    check("heuristic totals stay in range", a.allSatisfy { $0.total >= 0 && $0.total <= 1 })
+    check("heuristic judge is deterministic", a == b)
+}
+
+// The API key is read from the key file and trimmed; the env var overrides it.
+do {
+    let tmp = FileManager.default.temporaryDirectory
+        .appendingPathComponent("jev-key-\(UUID().uuidString)")
+    try? "  my-secret-key\n".write(to: tmp, atomically: true, encoding: .utf8)
+    let fresh = { UserDefaults(suiteName: "jev-check-\(UUID().uuidString)")! }
+    let fromFile = JevKey.load(environment: [:], keyFile: tmp, defaults: fresh())
+    check("key file is read and trimmed", fromFile == "my-secret-key", "got \(fromFile ?? "nil")")
+    let fromEnv = JevKey.load(environment: ["TYPESAFE_API_KEY": "env-key"], keyFile: tmp, defaults: fresh())
+    check("env var overrides the key file", fromEnv == "env-key", "got \(fromEnv ?? "nil")")
+    let missing = JevKey.load(environment: [:], keyFile: tmp.appendingPathExtension("nope"), defaults: fresh())
+    check("missing key yields nil", missing == nil, "got \(missing ?? "nil")")
+    try? FileManager.default.removeItem(at: tmp)
+}
+
+// Fallback: a judge that throws is replaced by the heuristic.
+do {
+    struct BrokenJudge: HabitatJudge {
+        func rank(_ candidates: [LayoutSnapshot], context: TankContext) async throws -> [CandidateScore] {
+            throw JevError.transport
+        }
+    }
+    let sims = (0..<3).map { k -> AquariumSim in
+        var cfg = TankConfig(); cfg.seed = UInt64(k) + 100
+        return AquariumSim(config: cfg)
+    }
+    let snaps = sims.map { LayoutSnapshot.extract(from: $0) }
+    let context = TankContext(theme: "reef", fishCount: sims[0].fish.count, width: sims[0].config.width)
+    let judge = FallbackHabitatJudge(primary: BrokenJudge(), secondary: HeuristicHabitatJudge())
+    let scores = (try? await judge.rank(snaps, context: context)) ?? []
+    check("fallback judge recovers from a failure", scores.count == snaps.count)
+}
+
+// Optional live smoke test: `JEV_LIVE_TEST=1 swift run aquarium-checks`.
+// Verifies the real request path; skipped by default so checks stay offline.
+if ProcessInfo.processInfo.environment["JEV_LIVE_TEST"] == "1", let key = JevKey.load() {
+    let sims = (0..<3).map { k -> AquariumSim in
+        var cfg = TankConfig(); cfg.seed = UInt64(k) &+ 7
+        return AquariumSim(config: cfg)
+    }
+    let snaps = sims.map { LayoutSnapshot.extract(from: $0) }
+    let context = TankContext(theme: "freshwater", fishCount: sims[0].fish.count, width: sims[0].config.width)
+    let judge = JevHabitatJudge(client: JevClient(config: JevConfig(apiKey: key)))
+    do {
+        let scores = try await judge.rank(snaps, context: context)
+        let best = LayoutSelection.bestIndex(scores, candidateCount: snaps.count)
+        print("        live Jev ranked \(scores.count) candidates; best #\(best)")
+        for s in scores {
+            print(String(format: "          #%d total %.2f  focal %.2f  balance %.2f  open %.2f  theme %.2f  plants %.2f",
+                         s.id, s.total, s.focalPoint, s.balance, s.openWater, s.themeCoherent, s.plantUtility))
+        }
+        check("live Jev answered for every candidate", scores.count == snaps.count)
+    } catch {
+        check("live Jev request succeeded", false, "\(error)")
+    }
+} else {
+    print("        (live Jev test skipped; set JEV_LIVE_TEST=1 to run)")
 }
 
 print("\n\(checks - failures)/\(checks) checks passed")

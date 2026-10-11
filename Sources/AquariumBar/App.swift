@@ -42,6 +42,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller.start()
+        // A judged "New Tank" swaps the sim asynchronously; refresh the menu
+        // (legendary name) when it lands.
+        controller.onTankChanged = { [weak self] in self?.rebuildMenu() }
         setupStatusItem()
         LayoutLog.note("legendary", controller.sim.legendaryName ?? "none")
 
@@ -146,12 +149,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    @objc private func useFreshwater() { applyTheme(.freshwater) }
-    @objc private func useDeepSea() { applyTheme(.deepSea) }
-    @objc private func useReef() { applyTheme(.reef) }
+    @objc private func useFreshwater() { applyTheme(.freshwater, named: "freshwater") }
+    @objc private func useDeepSea() { applyTheme(.deepSea, named: "deepSea") }
+    @objc private func useReef() { applyTheme(.reef, named: "reef") }
 
-    private func applyTheme(_ palette: Palette) {
-        controller.setTheme(palette)
+    private func applyTheme(_ palette: Palette, named name: String) {
+        controller.setTheme(palette, name: name)
         rebuildMenu()
     }
 

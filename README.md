@@ -23,7 +23,9 @@ danio, platy, rasbora, cherry barb, cory, angelfish), and one **legendary
 resident**. Down on the sand live a **snail** and **two shrimp**.
 
 Fish swim to their own destinations, hold a preferred depth and pace, keep
-their distance, avoid the glass, and rise to food you drop. The jellyfish
+their distance, avoid the glass, and rise to food you drop. Each fish keeps a
+**hidden fullness tracker**: when it's full it ignores food and drifts away,
+then gets hungry again as it digests. The jellyfish
 ignores all that — it pulses upward, sinks, and drifts.
 
 Also in the tank: a **day/night cycle** (fish are lively by day and languid by
@@ -86,10 +88,37 @@ menu bar**:
 - **Show Preview Window** — a normal window with the same tank.
 - **Theme** — switch between *Freshwater*, *Deep Sea*, and *Reef* (royal-blue water + pink sand).
 - **New Tank** — re-roll a whole fresh tank (new layout, fish, and legendary).
+  Six candidate layouts are generated and the best is chosen by **Jev** (see
+  *Smart habitat* below), falling back to on-device heuristics with no key.
 - **Quit Touch Bar Aquarium**.
 
 A **fish icon is also added to the Control Strip** (right side of the Touch
 Bar); tap it to re-show the tank if it ever gets covered.
+
+
+## Smart habitat (TypeSafe / Jev)
+
+**New Tank** doesn't just roll a random scene — it generates six candidate
+habitats, asks [TypeSafe](https://docs.typesafe.ai)'s **System One** model
+**Jev** to judge the composition of each in a single request, and keeps the
+best. Code owns everything deterministic:
+
+- **Code computes** the measurable features: rock/coral/anemone/plant counts,
+  plant coverage, left/right mass, the largest open stretch, tallest plant.
+- **Jev judges** five fuzzy dimensions per candidate — focal point, balance,
+  open water (against fish count), theme coherence, and plant-bed density — as
+  `Noul` and `Score` questions asked in parallel over one state.
+- **Code combines** those answers with explicit weights (`LayoutScorer`) and
+  picks the winner.
+
+If there's no key, the network is down, or the request fails, it silently falls
+back to `HeuristicHabitatJudge` — a pure-Swift version of the same score — so
+the tank always builds. Jev never touches fish motion or rendering.
+
+```sh
+# Prove the live request path end-to-end:
+JEV_LIVE_TEST=1 swift run aquarium-checks
+```
 
 
 ## Layout
@@ -103,6 +132,12 @@ Sources/
     Art.swift       Every color and sprite, in one place
     Frame.swift     RGBA8 image
     Random.swift    Seedable PRNG (deterministic worlds)
+  AquariumJev/      Ranks candidate habitats with Jev (HTTP), or on-device
+    LayoutSnapshot.swift   Text/JSON description of a tank's decor + plants
+    HabitatJudge.swift     Judge protocol, weighted scorer, offline fallback
+    JevClient.swift        Minimal POST /v1/systemone client
+    JevHabitatJudge.swift  The composition questions + weighted pick
+    JevKey.swift           Where the API key comes from
   AquariumBar/      Thin AppKit adapter at the seam
     Controller.swift         owns the sim, ticks it at 30fps, notifies views
     TankView.swift           NSView that blits frames (nearest-neighbour, 3×)
@@ -148,8 +183,12 @@ swift run aquarium-checks
 ```
 
 Proves the deep module's contract through its interface: stable fish count,
-fish never leave the tank, determinism for a fixed seed, food gets eaten,
-poking scatters fish, and bounds hold in a cramped tank.
+fish never leave the tank, determinism for a fixed seed, food gets eaten (and a
+full fish ignores it until it digests), poking scatters fish, and bounds hold in
+a cramped tank. It also covers the habitat judge: layout snapshots are
+deterministic per seed, the plant-bed utility peaks at "comfortable", selection
+picks the highest total and resolves ties, the heuristic judge is deterministic,
+the key file is read and trimmed, and a failing judge falls back.
 
 ## Design notes
 

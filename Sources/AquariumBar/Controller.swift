@@ -1,12 +1,14 @@
 import AppKit
 import Foundation
+import Dispatch
 import QuartzCore
-import AquariumCore
+@preconcurrency import AquariumCore
+@preconcurrency import AquariumJev
 
 /// Owns the one true simulation and drives it on a timer. Both the preview
 /// window and the Touch Bar view render from the same controller, so they show
 /// the same tank.
-final class AquariumController {
+final class AquariumController: @unchecked Sendable {
     private(set) var sim: AquariumSim
     private let observers = NSHashTable<NSView>.weakObjects()
     private var timer: Timer?
@@ -14,22 +16,58 @@ final class AquariumController {
     private let fps: Double = 20
 
     private var theme: Palette = .freshwater
+    private var themeName: String = "freshwater"
     private var followClock = true
 
-    init() {
+    /// Ranks candidate habitats for "New Tank" (Jev with a heuristic fallback).
+    private let judge: any HabitatJudge
+    /// Bumped on every New Tank so a slower, stale selection can't clobber a newer one.
+    private var newTankGeneration = 0
+
+    /// How many candidate tanks "New Tank" generates and lets the judge rank.
+    static let candidateCount = 6
+
+    /// Called on the main thread after the tank is swapped (the selection is async).
+    var onTankChanged: (() -> Void)?
+
+    init(judge: any HabitatJudge = JevHabitatJudge.liveOrHeuristic()) {
+        self.judge = judge
         // A fresh tank every launch: randomise the seed so the layout, the fish,
         // and the legendary roll differ each time. The sim stays deterministic
         // for a given seed, so tests and PNG previews reproduce.
-        sim = AquariumSim(config: AquariumController.makeConfig(palette: .freshwater, followClock: true))
+        sim = AquariumSim(config: AquariumController.makeConfig(palette: .freshwater, followClock: true, seed: nil))
     }
 
-    /// Re-roll the whole tank (new layout, fish, legendary) with a fresh seed.
+    /// Re-roll the tank, then keep the best of `candidateCount` layouts by the
+    /// judge's ranking. The current tank stays visible until the pick completes.
     func newTank() {
-        sim = AquariumSim(config: AquariumController.makeConfig(palette: theme, followClock: followClock))
+        newTankGeneration += 1
+        let generation = newTankGeneration
+
+        let baseSeed = UInt64.random(in: 0..<UInt64.max)
+        let candidates: [AquariumSim] = (0..<AquariumController.candidateCount).map { k in
+            let seed = baseSeed &+ UInt64(k) &* 0x9E37_79B9_7F4A_7C15
+            return AquariumSim(config: AquariumController.makeConfig(palette: theme, followClock: followClock, seed: seed))
+        }
+        let snapshots = candidates.map { LayoutSnapshot.extract(from: $0) }
+        let first = candidates[0]
+        let context = TankContext(theme: themeName, fishCount: first.fish.count, width: first.config.width)
+
+        Task { [weak self] in
+            guard let self else { return }
+            let scores = (try? await self.judge.rank(snapshots, context: context)) ?? []
+            let best = LayoutSelection.bestIndex(scores, candidateCount: candidates.count)
+            DispatchQueue.main.async {
+                guard generation == self.newTankGeneration else { return }
+                self.sim = candidates[best]
+                self.onTankChanged?()
+            }
+        }
     }
 
-    func setTheme(_ palette: Palette) {
+    func setTheme(_ palette: Palette, name: String) {
         theme = palette
+        themeName = name
         sim.setPalette(palette)
     }
 
@@ -39,9 +77,9 @@ final class AquariumController {
         sim.setClock(hour: on ? AquariumController.currentHour() : sim.clockHour, realClock: on)
     }
 
-    private static func makeConfig(palette: Palette, followClock: Bool) -> TankConfig {
+    private static func makeConfig(palette: Palette, followClock: Bool, seed: UInt64?) -> TankConfig {
         var cfg = TankConfig()
-        cfg.seed = UInt64.random(in: 0..<UInt64.max)
+        cfg.seed = seed ?? UInt64.random(in: 0..<UInt64.max)
         cfg.palette = palette
         cfg.realClock = followClock
         if followClock { cfg.startHour = currentHour() }
