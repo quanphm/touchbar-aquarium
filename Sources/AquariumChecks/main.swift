@@ -310,6 +310,42 @@ do {
     })
 }
 
+// Fry grow into adults and new fry are born, all under the population cap.
+// (Real timings are ~1h grow / ~2h birth; compress them to keep this fast.)
+do {
+    var cfg = TankConfig()
+    cfg.fryGrowSeconds = 8
+    cfg.fryBirthSeconds = 12
+    cfg.maxFish = cfg.fishCount + cfg.babyCount + 3   // = 13
+    var sim = AquariumSim(config: cfg)
+    let babies0 = sim.fish.filter { $0.baby }.count
+    let startCount = sim.fish.count
+    run(&sim, seconds: 60)
+    let babies1 = sim.fish.filter { $0.baby }.count
+    check("fry grow into adults", babies1 < babies0, "\(babies0) -> \(babies1)")
+    check("new fry are born over time", sim.fish.count > startCount, "\(startCount) -> \(sim.fish.count)")
+    check("population stays under the cap", sim.fish.count <= cfg.maxFish, "\(sim.fish.count)")
+}
+
+// Per-fish personalities vary.
+do {
+    let sim = AquariumSim()
+    let paces = Set(sim.fish.map { Int(($0.pace * 100).rounded()) })
+    let bolds = Set(sim.fish.map { Int(($0.bold * 100).rounded()) })
+    check("fish have varied personalities", paces.count > 1 && bolds.count > 1,
+          "\(paces.count) paces, \(bolds.count) bolds")
+}
+
+// New species, and only the Kohaku legendary remains.
+do {
+    let names = Set(Art.species.map { $0.name })
+    check("betta and goldfish were added", names.contains("betta") && names.contains("goldfish"))
+    check("only Kohaku remains legendary",
+          Art.legendaryKinds.count == 1 && Art.legendaryKinds[0].name == "Kohaku")
+    check("new species are spawnable",
+          Art.schoolerPool.contains(11) && Art.schoolerPool.contains(12))
+}
+
 print("\n\(checks - failures)/\(checks) checks passed")
 if failures > 0 {
     FileHandle.standardError.write(Data("\(failures) check(s) failed\n".utf8))

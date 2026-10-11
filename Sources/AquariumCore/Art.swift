@@ -9,6 +9,8 @@ public enum FishShape {
     case loach      // long, thin, hugs the floor
     case puffer     // round and stubby
     case clown      // striped anemonefish
+    case betta      // showy, long flowing fins
+    case goldfish   // round-bodied and golden
     case jelly      // pulsing jellyfish (drifter)
 }
 
@@ -183,11 +185,13 @@ public enum Art {
         FishStyle("puffer", shape: .puffer, body: RGBA(hex: 0x9BC53D), belly: RGBA(hex: 0xE6F0B0), fin: RGBA(hex: 0x6F8F2A), eye: RGBA(hex: 0x181A0A), depth: 0.58, speedScale: 0.60, darts: 0.1),
         FishStyle("clownfish", shape: .clown, body: RGBA(hex: 0xF08A2A), belly: RGBA(hex: 0xFFD9A8), fin: RGBA(hex: 0xE06A1E), eye: RGBA(hex: 0x1A1008), depth: 0.42, speedScale: 0.9, darts: 0.25, stripe: RGBA(hex: 0xFFF4F0)),
         FishStyle("jellyfish", shape: .jelly, body: RGBA(hex: 0xB8A6F0), belly: RGBA(hex: 0xEDE6FF), fin: RGBA(hex: 0x8E7AD0), eye: RGBA(hex: 0x201830), depth: 0.5, speedScale: 0.5, darts: 0.0, glow: RGBA(hex: 0xC7B4FF)),
+        FishStyle("betta", shape: .betta, body: RGBA(hex: 0x5B3FC0), belly: RGBA(hex: 0xC9BCF0), fin: RGBA(hex: 0xE23B6D), eye: RGBA(hex: 0x120C18), depth: 0.38, speedScale: 0.75, darts: 0.12),
+        FishStyle("goldfish", shape: .goldfish, body: RGBA(hex: 0xF5B301), belly: RGBA(hex: 0xFFE7A0), fin: RGBA(hex: 0xE08A00), eye: RGBA(hex: 0x1A1206), depth: 0.52, speedScale: 0.7, darts: 0.1),
     ]
 
     /// Species pool for the "3 other fishes" slots (everything but the
     /// headline cast: clownfish, puffer, jellyfish).
-    public static let schoolerPool: [Int] = [0, 1, 2, 3, 4, 5, 6, 7]
+    public static let schoolerPool: [Int] = [0, 1, 2, 3, 4, 5, 6, 7, 11, 12]
 
     private static var spriteCache: [Int: PixelSprite] = [:]
 
@@ -222,7 +226,18 @@ public enum Art {
         case .standard, .clown: return 2
         case .guppy: return 3
         case .angel, .loach: return 1
+        case .betta: return 4
+        case .goldfish: return 2
         case .puffer, .jelly: return 0
+        }
+    }
+
+    /// Whether a species shoals: the slim schoolers (tetras, danios, barbs,
+    /// guppies). Bottom-dwellers, angels, and the headline cast do not.
+    public static func schools(_ index: Int) -> Bool {
+        switch style(index).shape {
+        case .standard, .guppy: return true
+        default: return false
         }
     }
 
@@ -251,18 +266,6 @@ ffooe
         LegendaryKind("Kohaku",
                       body: RGBA(hex: 0xF4F1EC), belly: RGBA(hex: 0xFFFFFF), fin: RGBA(hex: 0xDAD3C8),
                       eye: RGBA(hex: 0x161311), patch: RGBA(hex: 0xD93B2B), glow: RGBA(hex: 0xFFB59A)),
-        LegendaryKind("Showa",
-                      body: RGBA(hex: 0xF4F1EC), belly: RGBA(hex: 0xFFFFFF), fin: RGBA(hex: 0xDAD3C8),
-                      eye: RGBA(hex: 0x161311), patch: RGBA(hex: 0x2A2A30), glow: RGBA(hex: 0x9FB2C8)),
-        LegendaryKind("Ogon",
-                      body: RGBA(hex: 0xE8B23A), belly: RGBA(hex: 0xF9DE96), fin: RGBA(hex: 0xC98E24),
-                      eye: RGBA(hex: 0x241A08), patch: RGBA(hex: 0xF6D06A), glow: RGBA(hex: 0xFFE08A)),
-        LegendaryKind("Tancho",
-                      body: RGBA(hex: 0xF4F1EC), belly: RGBA(hex: 0xFFFFFF), fin: RGBA(hex: 0xDAD3C8),
-                      eye: RGBA(hex: 0x161311), patch: RGBA(hex: 0xC0392B), glow: RGBA(hex: 0xFF8A76)),
-        LegendaryKind("Asagi",
-                      body: RGBA(hex: 0xBFD3E8), belly: RGBA(hex: 0xEAF2FB), fin: RGBA(hex: 0x93A9C2),
-                      eye: RGBA(hex: 0x12161C), patch: RGBA(hex: 0x4A7FB5), glow: RGBA(hex: 0xA8D4FF)),
     ]
 
     public static func legendarySprite(_ kind: Int) -> PixelSprite {
@@ -335,6 +338,22 @@ ffooe
             ..oowoowoo
             ffoowooweo
             ..bbwbbwbb
+            """
+        case .betta:
+            return """
+            .f..ooooo..
+            ff.oooooeoo
+            ffffoooooo.
+            ff.ooooooo.
+            .f..bbbbb..
+            """
+        case .goldfish:
+            return """
+            ..ooooo...
+            ffooooooo.
+            ffoooooeoo
+            .ffoooooo.
+            ..bbbbb...
             """
         case .jelly:
             return """

@@ -19,14 +19,18 @@ for a bioluminescent feel.
 
 **The cast:** a striped **clownfish**, a round **pufferfish**, a pulsing,
 glowing **jellyfish**, **three random schoolers** (from neon tetra, guppy,
-danio, platy, rasbora, cherry barb, cory, angelfish), and one **legendary
-resident**. Down on the sand live a **snail** and **two shrimp**.
+danio, platy, rasbora, cherry barb, cory, angelfish, **betta**, **goldfish**),
+and one **legendary resident**. Down on the sand live a **snail**, **two
+shrimp**, and a **starfish**.
 
 Fish swim to their own destinations, hold a preferred depth and pace, keep
 their distance, avoid the glass, and rise to food you drop. Each fish keeps a
 **hidden fullness tracker**: when it's full it ignores food and drifts away,
-then gets hungry again as it digests. The jellyfish
-ignores all that — it pulses upward, sinks, and drifts.
+then gets hungry again as it digests. **Schoolers shoal** together, every fish
+has its own **personality** (bold/shy, fast/slow), and **baby fry grow into
+adults** over about an hour — as a **random species** — with a new fry roughly
+every two hours, up to a population cap of 20. The
+jellyfish ignores all that — it pulses upward, sinks, and drifts.
 
 Also in the tank: a **day/night cycle** (fish are lively by day and languid by
 night, and the water dims), **species personalities** (guppies and danios dart
@@ -36,9 +40,8 @@ in bursts; the puffer inflates when startled), and switchable **themes**
 ## The legendary resident
 
 Every tank includes a **legendary koi**: a big, elegant carp wreathed in a soft
-glow and trailing sparkles, gliding slower and grander than the rest. It comes
-in five varieties — *Kohaku*, *Showa*, *Ogon*, *Tancho*, or *Asagi* — and its
-name shows in the menu-bar menu.
+glow and trailing sparkles, gliding slower and grander than the rest. It is a
+red-and-white ***Kohaku***, and its name shows in the menu-bar menu.
 
 Render it to PNG:
 

@@ -11,6 +11,13 @@ public struct TankConfig {
     public var fishCount: Int = 7
     /// A few extra baby fish (fry). Kept small so the tank doesn't crowd.
     public var babyCount: Int = 3
+    /// Population cap. Fry grow up and new fry are born, but the tank never
+    /// exceeds this many fish, so it can't crowd.
+    public var maxFish: Int = 20
+    /// Seconds for a fry to mature into an adult (about an hour).
+    public var fryGrowSeconds: Double = 3600
+    /// Seconds between new fry being born (about two hours).
+    public var fryBirthSeconds: Double = 7200
     /// Whether the tank includes its legendary resident. On by default.
     public var legendaryChance: Double = 1.0
     public var seed: UInt64 = 0xA9E1
@@ -63,6 +70,10 @@ public struct Fish {
     public var puff: Double = 0    // remaining puffer-inflation time
     public var pulse: Double = 0   // jellyfish pulse timer
     public var baby: Bool = false  // a small fry, drawn with a smaller sprite
+    public var age: Double = 0      // seconds since spawned (drives fry growth)
+    public var growAt: Double = 150 // age at which a fry becomes an adult
+    public var bold: Double = 0.5   // 0 shy .. 1 bold (dart rate)
+    public var pace: Double = 1.0   // personal speed multiplier
 }
 
 public struct Bubble {
@@ -151,6 +162,8 @@ public struct AquariumSim {
 
     private var rng: SeededRandom
     private var bubbleTimers: [Double] = []
+    /// Counts down to the next fry being born.
+    private var fryTimer: Double = 0
     private var fearTimer: Double = 0
     private var fearX: Double = 0
     private var legendaryIndex: Int?
@@ -188,6 +201,7 @@ public struct AquariumSim {
         decorate()
         seedCritters()
         seedBubbles()
+        fryTimer = config.fryBirthSeconds * rng.range(0.92, 1.08)
     }
 
     // MARK: - Public interface
@@ -213,6 +227,7 @@ public struct AquariumSim {
         updateCritters(dt)
         updateSparkles(dt)
         updateBubbles(dt)
+        updateFry(dt)
 
         if fearTimer > 0 { fearTimer = max(0, fearTimer - dt) }
     }
@@ -271,6 +286,7 @@ public struct AquariumSim {
                 ? rng.range(minY + 1, maxY - 1)
                 : min(maxY - 1, max(minY + 1, homeY + rng.range(-0.8, 0.8)))
             let dir = rng.unit() < 0.5 ? -1.0 : 1.0
+            let pace = rng.range(0.85, 1.15)
             fish.append(Fish(
                 x: x, y: y,
                 vx: isJelly ? rng.range(-1.4, 1.4) : dir * rng.range(2, 4),
@@ -278,12 +294,14 @@ public struct AquariumSim {
                 species: speciesIndex,
                 facing: dir < 0 ? -1 : 1,
                 phase: rng.range(0, 6.28),
-                speed: rng.range(4.2, 7.2) * style.speedScale,
+                speed: rng.range(4.2, 7.2) * style.speedScale * pace,
                 satiety: rng.range(0.2, 0.7),
                 homeY: homeY,
                 homeX: homeX,
                 radius: Double(Art.fishSprite(speciesIndex).width) * 0.5,
-                tx: x, ty: y, retarget: 0
+                tx: x, ty: y, retarget: 0,
+                bold: rng.range(0.2, 0.9),
+                pace: pace
             ))
             let idx = fish.count - 1
             if isJelly {
@@ -317,7 +335,10 @@ public struct AquariumSim {
                 homeX: homeX,
                 radius: Double(Art.frySprite(speciesIndex).width) * 0.5,
                 tx: x, ty: y, retarget: 0,
-                baby: true
+                baby: true,
+                growAt: config.fryGrowSeconds * rng.range(0.92, 1.08),
+                bold: rng.range(0.3, 0.8),
+                pace: rng.range(0.9, 1.1)
             ))
             requestTarget(fish.count - 1)
         }
@@ -342,7 +363,9 @@ public struct AquariumSim {
             radius: Double(Art.legendarySprite(kind).width) * 0.5,
             tx: x, ty: homeY, retarget: 0,
             isLegendary: true,
-            legendaryKind: kind
+            legendaryKind: kind,
+            bold: 0.3,
+            pace: 0.9
         ))
         legendaryIndex = fish.count - 1
         requestTarget(fish.count - 1)
@@ -383,11 +406,18 @@ public struct AquariumSim {
         guard n > 0 else { return }
 
         for i in 0..<n {
+            fish[i].age += dt
             // Jellyfish drift and pulse rather than swim to destinations.
             if Art.species[fish[i].species].shape == .jelly {
                 updateJelly(i, dt)
                 continue
             }
+            // Fry grow into adults — into a random fish species, not necessarily
+            // the one they were born as.
+            if fish[i].baby, fish[i].age >= fish[i].growAt {
+                growUp(i)
+            }
+            let style = Art.species[fish[i].species]
 
             // Swim toward the current destination; pick a new one on arrival
             // or when the timer runs out.
@@ -416,12 +446,35 @@ public struct AquariumSim {
             dvx *= energy
             dvy *= energy
 
+            // Light boid steering: schooling species shoal toward the centre and
+            // heading of nearby schoolers. Kept gentle so they still roam.
+            if Art.schools(fish[i].species) {
+                var cx = 0.0, cy = 0.0, avx = 0.0, avy = 0.0, count = 0.0
+                let r2 = 55.0 * 55.0
+                for j in 0..<n where j != i {
+                    guard Art.schools(fish[j].species) else { continue }
+                    let dx = fish[j].x - fish[i].x
+                    let dy = fish[j].y - fish[i].y
+                    if dx * dx + dy * dy < r2 {
+                        cx += fish[j].x; cy += fish[j].y
+                        avx += fish[j].vx; avy += fish[j].vy
+                        count += 1
+                    }
+                }
+                if count > 0 {
+                    dvx += ((cx / count) - fish[i].x) * 0.05
+                    dvy += ((cy / count) - fish[i].y) * 0.05
+                    dvx += ((avx / count) - fish[i].vx) * 0.08
+                    dvy += ((avy / count) - fish[i].vy) * 0.08
+                }
+            }
+
             // Personalities: flitty species dart in short bursts; puffers
-            // deflate on a timer (after being poked).
+            // deflate on a timer (after being poked). Bold fish dart more.
             fish[i].puff = max(0, fish[i].puff - dt)
             if !fish[i].isLegendary {
                 fish[i].burst = max(0, fish[i].burst - dt)
-                if fish[i].burst == 0, rng.unit() < Art.species[fish[i].species].darts * dt * 0.8 {
+                if fish[i].burst == 0, rng.unit() < style.darts * (0.4 + fish[i].bold) * dt * 0.8 {
                     fish[i].burst = rng.range(0.35, 0.7)
                 }
                 if fish[i].burst > 0 {
@@ -648,6 +701,59 @@ public struct AquariumSim {
             if b.y > -1.5 { kept.append(b) }
         }
         bubbles = kept
+    }
+
+    // MARK: - Fry
+
+    /// Birth a new fry now and then, up to the population cap.
+    private mutating func updateFry(_ dt: Double) {
+        fryTimer -= dt
+        if fryTimer <= 0 {
+            if fish.count < config.maxFish { spawnFry() }
+            fryTimer = config.fryBirthSeconds * rng.range(0.92, 1.08)
+        }
+    }
+
+    /// Mature a fry into a random adult fish (a new species, not its birth one).
+    private mutating func growUp(_ i: Int) {
+        fish[i].baby = false
+        if !Art.schoolerPool.isEmpty {
+            fish[i].species = Art.schoolerPool[rng.int(Art.schoolerPool.count)]
+        }
+        let s = Art.species[fish[i].species]
+        fish[i].radius = Double(Art.fishSprite(fish[i].species).width) * 0.5
+        fish[i].homeY = minY + (maxY - minY) * s.depth
+        fish[i].speed = rng.range(4.2, 7.2) * s.speedScale * fish[i].pace
+    }
+
+    private mutating func spawnFry() {
+        guard !Art.schoolerPool.isEmpty else { return }
+        let speciesIndex = Art.schoolerPool[rng.int(Art.schoolerPool.count)]
+        let style = Art.species[speciesIndex]
+        let homeY = minY + (maxY - minY) * style.depth
+        let homeX = rng.range(minX + 20, maxX - 20)
+        let x = rng.range(Double(minX + 6), Double(maxX - 6))
+        let y = min(maxY - 1, max(minY + 1, homeY + rng.range(-0.8, 0.8)))
+        let dir = rng.unit() < 0.5 ? -1.0 : 1.0
+        fish.append(Fish(
+            x: x, y: y,
+            vx: dir * rng.range(1.5, 3.0),
+            vy: 0,
+            species: speciesIndex,
+            facing: dir < 0 ? -1 : 1,
+            phase: rng.range(0, 6.28),
+            speed: rng.range(3.4, 5.4) * style.speedScale,
+            satiety: rng.range(0.2, 0.7),
+            homeY: homeY,
+            homeX: homeX,
+            radius: Double(Art.frySprite(speciesIndex).width) * 0.5,
+            tx: x, ty: y, retarget: 0,
+            baby: true,
+            growAt: rng.range(120, 240),
+            bold: rng.range(0.3, 0.8),
+            pace: rng.range(0.9, 1.1)
+        ))
+        requestTarget(fish.count - 1)
     }
 
     // MARK: - Cleanup crew
