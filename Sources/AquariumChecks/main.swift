@@ -458,6 +458,50 @@ do {
           "longest stuck run: \(String(format: "%.2f", worstLegendStall))s")
 }
 
+// Food must stay local. With no reach limit on `nearestPellet`, one drop
+// pulls every hungry fish in the tank toward it, and because the pull was
+// several times cruise speed they sprinted across the whole 1080px tank
+// rather than swimming to a nearby snack.
+do {
+    var cfg = TankConfig()
+    cfg.satietyDecay = 0
+    cfg.seed = 424_242
+    var sim = AquariumSim(config: cfg)
+    let dt = 1.0 / 60.0
+    var fastest = 0.0
+    for step in 0..<600 {
+        if step % 30 == 0 { sim.feed(x: 200 + Double(step % 120)) }
+        sim.tick(dt: dt)
+        for f in sim.fish {
+            fastest = max(fastest, (f.vx * f.vx + f.vy * f.vy).squareRoot())
+        }
+    }
+    // Cruise tops out around 6.4 here. An unbounded pull reached 32.6; food
+    // plus separation and darting bursts settles near 15.
+    check("food pulls nearby fish, not the whole tank", fastest < 20,
+          "fastest while feeding: \(String(format: "%.1f", fastest)) px/s")
+}
+
+// ...and the bound must not be so tight that fish stop eating. Feeding right
+// on top of a hungry fish still works.
+do {
+    var cfg = TankConfig()
+    cfg.satietyDecay = 0
+    var sim = AquariumSim(config: cfg)
+    let isHunter: (Fish) -> Bool = { !$0.isMermaid && Art.species[$0.species].shape != .jelly }
+    var fed = 0
+    for _ in 0..<40 {
+        for f in sim.fish where isHunter(f) && f.satiety < cfg.fullThreshold {
+            sim.feed(x: f.x)
+        }
+        run(&sim, seconds: 1.5)
+        fed = sim.fish.filter { isHunter($0) && $0.satiety >= cfg.fullThreshold }.count
+        if fed == sim.fish.filter(isHunter).count { break }
+    }
+    let hunters = sim.fish.filter(isHunter).count
+    check("nearby food is still eaten", fed == hunters, "\(fed)/\(hunters) fed")
+}
+
 print("\n\(checks - failures)/\(checks) checks passed")
 if failures > 0 {
     FileHandle.standardError.write(Data("\(failures) check(s) failed\n".utf8))

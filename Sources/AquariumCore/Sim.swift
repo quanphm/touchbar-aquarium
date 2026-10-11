@@ -37,6 +37,11 @@ public struct TankConfig {
     public var satietyDecay: Double = 0.2 / 60.0
     /// A fish at or above this fullness ignores food until it digests.
     public var fullThreshold: Double = 0.8
+    /// How far (art px) a hungry fish can notice food. Bounded on purpose:
+    /// with no limit every hungry fish in the tank swims to every pellet and
+    /// the whole population converges on one drop. Scaled per fish by cruise
+    /// speed, so faster fish spot it from a little further out.
+    public var feedReach: Double = 70
 
     public init() {}
 }
@@ -633,6 +638,31 @@ public struct AquariumSim {
                     dvy *= 1.9
                 }
             }
+            // Only hungry fish chase food. A fish that is full ignores pellets until
+            // its satiety has drained back below the threshold. Mermaids never
+            // feed at all.
+            //
+            // The pull is scaled to the fish's own cruising speed and ramps up
+            // with proximity, so food bends its course rather than dragging it
+            // across the tank — an absolute pull several times the cruise speed
+            // turns every hungry fish into a sprinter the moment you tap.
+            if !fish[i].isMermaid, fish[i].satiety < config.fullThreshold {
+                let reach = max(24, config.feedReach * min(1.6, fish[i].speed / 5.0))
+                if let target = nearestPellet(to: fish[i], reach: reach) {
+                    let dx = target.x - fish[i].x
+                    let dy = target.y - fish[i].y
+                    let d = max(0.001, (dx * dx + dy * dy).squareRoot())
+                    let urgency = 1 - d / reach
+                    let pull = fish[i].speed * (0.5 + 1.1 * urgency)
+                    dvx += (dx / d) * pull
+                    dvy += (dy / d) * pull
+                    if d < 2.0 {
+                        eatPellet(near: fish[i])
+                        fish[i].satiety = 1.0
+                    }
+                }
+            }
+
             // Separation steering: anticipate neighbours and step aside when
             // closing, instead of only being pushed apart after overlapping.
             var sepX = 0.0, sepY = 0.0, sepW = 0.0
@@ -685,25 +715,11 @@ public struct AquariumSim {
             if sepW > 0.001 {
                 // Weighted average of the neighbours' push directions, so one
                 // close fish dominates rather than many distant ones summing.
+                // Added last so spacing always has the final say — a fish
+                // hunting for food must not be allowed to plough through a
+                // neighbour to reach it.
                 dvx += (sepX / sepW) * fish[i].speed * 0.6
                 dvy += (sepY / sepW) * fish[i].speed * 0.6
-            }
-
-            // Only hungry fish chase food. A fish that is full ignores pellets
-            // until its satiety has drained back below the threshold. Mermaids
-            // never feed at all.
-            if !fish[i].isMermaid, fish[i].satiety < config.fullThreshold,
-               let target = nearestPellet(to: fish[i]) {
-                let dx = target.x - fish[i].x
-                let dy = target.y - fish[i].y
-                let d = max(0.001, (dx * dx + dy * dy).squareRoot())
-                let pull = 26 * (0.6 + 0.4 * (1 - fish[i].satiety))
-                dvx += (dx / d) * pull
-                dvy += (dy / d) * pull
-                if d < 1.8 {
-                    eatPellet(near: fish[i])
-                    fish[i].satiety = 1.0
-                }
             }
 
             // Flee a poke.
@@ -815,9 +831,14 @@ public struct AquariumSim {
         if fish[i].x > maxX { fish[i].x = maxX; fish[i].vx = -abs(fish[i].vx) }
     }
 
-    private func nearestPellet(to f: Fish) -> Pellet? {
+    /// The pellet this fish will go for, or nil if none is within `reach`.
+    ///
+    /// The reach bound is the whole point: without it `nearest` is just
+    /// whichever pellet happens to exist, so a single drop pulls in every
+    /// hungry fish from the far end of a 1080px tank.
+    private func nearestPellet(to f: Fish, reach: Double) -> Pellet? {
         var best: Pellet?
-        var bestD = Double.greatestFiniteMagnitude
+        var bestD = reach * reach
         for p in pellets {
             let dx = p.x - f.x
             let dy = p.y - f.y
