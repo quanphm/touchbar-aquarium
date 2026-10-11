@@ -167,11 +167,18 @@ public struct AquariumSim {
     /// lively the fish are.
     public var daylight: Double = 1.0
 
-    /// Name of the legendary resident, if the tank rolled one.
-    public var legendaryName: String? {
-        guard let i = legendaryIndex, i < fish.count else { return nil }
-        return Art.legendaryKinds[fish[i].legendaryKind].name
+    /// Names of the tank's legendary residents (one of every kind).
+    public var legendaryNames: [String] {
+        legendaryIndices.compactMap { i in
+            guard i < fish.count else { return nil }
+            let kinds = Art.legendaryKinds
+            let kind = fish[i].legendaryKind
+            return kinds[((kind % kinds.count) + kinds.count) % kinds.count].name
+        }
     }
+
+    /// The first legendary resident's name, if any.
+    public var legendaryName: String? { legendaryNames.first }
 
     private var rng: SeededRandom
     private var bubbleTimers: [Double] = []
@@ -179,7 +186,7 @@ public struct AquariumSim {
     private var fryTimer: Double = 0
     private var fearTimer: Double = 0
     private var fearX: Double = 0
-    private var legendaryIndex: Int?
+    private var legendaryIndices: [Int] = []
     private var sparkleTimer: Double = 0
 
     public var floorY: Int { config.height - config.floorHeight }
@@ -359,31 +366,34 @@ public struct AquariumSim {
         }
     }
 
-    /// Add the tank's legendary resident (only when the opening roll succeeds).
+    /// Add the tank's legendary residents — one of every kind, together.
     private mutating func addLegendary() {
-        let kind = rng.int(Art.legendaryKinds.count)   // Kohaku or the Rainbow Mermaid
-        let homeY = minY + (maxY - minY) * 0.5
-        let x = rng.range(Double(minX + 20), Double(maxX - 40))
-        let homeX = rng.range(minX + 50, maxX - 50)
-        fish.append(Fish(
-            x: x, y: homeY,
-            vx: 2, vy: 0,
-            species: 0,
-            facing: 1,
-            phase: rng.range(0, 6.28),
-            speed: 3.6,
-            satiety: 0.5,
-            homeY: homeY,
-            homeX: homeX,
-            radius: Double(Art.legendarySprite(kind).width) * 0.5,
-            tx: x, ty: homeY, retarget: 0,
-            isLegendary: true,
-            legendaryKind: kind,
-            bold: 0.3,
-            pace: 0.9
-        ))
-        legendaryIndex = fish.count - 1
-        requestTarget(fish.count - 1)
+        for (kind, style) in Art.legendaryKinds.enumerated() {
+            // The mermaid glides a bit quicker than the grand old koi.
+            let speed: Double = style.shape == .mermaid ? 6.2 : 4.2
+            let homeY = minY + (maxY - minY) * 0.5
+            let x = rng.range(Double(minX + 20), Double(maxX - 40))
+            let homeX = rng.range(minX + 50, maxX - 50)
+            fish.append(Fish(
+                x: x, y: homeY,
+                vx: 2, vy: 0,
+                species: 0,
+                facing: 1,
+                phase: rng.range(0, 6.28),
+                speed: speed,
+                satiety: 0.5,
+                homeY: homeY,
+                homeX: homeX,
+                radius: Double(Art.legendarySprite(kind).width) * 0.5,
+                tx: x, ty: homeY, retarget: 0,
+                isLegendary: true,
+                legendaryKind: kind,
+                bold: 0.3,
+                pace: 0.9
+            ))
+            legendaryIndices.append(fish.count - 1)
+            requestTarget(fish.count - 1)
+        }
     }
 
     /// Choose a fresh destination for fish `i`, within its depth band and far
@@ -393,9 +403,17 @@ public struct AquariumSim {
         let band = 1.8
         let tyLo = max(minY + 0.5, fish[i].homeY - band)
         let tyHi = min(maxY - 0.5, fish[i].homeY + band)
-        // Roam within a home region so fish stay spread out.
-        let loX = max(minX + 8, fish[i].homeX - 70)
-        let hiX = min(maxX - 8, fish[i].homeX + 70)
+        // Roam within a home region so fish stay spread out — but the legendary
+        // resident wanders the whole tank.
+        let loX: Double
+        let hiX: Double
+        if fish[i].isLegendary {
+            loX = minX + 8
+            hiX = maxX - 8
+        } else {
+            loX = max(minX + 8, fish[i].homeX - 70)
+            hiX = min(maxX - 8, fish[i].homeX + 70)
+        }
 
         var bestX = fish[i].x
         var bestScore = -Double.greatestFiniteMagnitude
@@ -453,8 +471,11 @@ public struct AquariumSim {
             var dvx = (dxT / max(0.001, distT)) * fish[i].speed * approach
             var dvy = (dyT / max(0.001, distT)) * fish[i].speed * approach * 0.45
 
-            // Soft pull toward home keeps each fish in its own region.
-            dvx += (fish[i].homeX - fish[i].x) * 0.14
+            // Soft pull toward home keeps each fish in its own region (the
+            // legendary resident roams free).
+            if !fish[i].isLegendary {
+                dvx += (fish[i].homeX - fish[i].x) * 0.14
+            }
 
             // Fish are lively in daylight and languid at night.
             let energy = 0.4 + 0.6 * daylight
@@ -649,19 +670,22 @@ public struct AquariumSim {
     // MARK: - Legendary sparkles
 
     private mutating func updateSparkles(_ dt: Double) {
-        if let li = legendaryIndex, li < fish.count {
+        if !legendaryIndices.isEmpty {
             sparkleTimer -= dt
             if sparkleTimer <= 0 {
                 sparkleTimer = rng.range(0.25, 0.8)
-                let f = fish[li]
-                let life = rng.range(0.6, 1.4)
-                sparkles.append(Sparkle(
-                    x: f.x + rng.range(-7, 7),
-                    y: f.y + rng.range(-3, 2),
-                    vy: -rng.range(2, 5),
-                    life: life,
-                    maxLife: life
-                ))
+                let li = legendaryIndices[rng.int(legendaryIndices.count)]
+                if li < fish.count {
+                    let f = fish[li]
+                    let life = rng.range(0.6, 1.4)
+                    sparkles.append(Sparkle(
+                        x: f.x + rng.range(-7, 7),
+                        y: f.y + rng.range(-3, 2),
+                        vy: -rng.range(2, 5),
+                        life: life,
+                        maxLife: life
+                    ))
+                }
             }
         }
         var kept: [Sparkle] = []
@@ -796,7 +820,7 @@ public struct AquariumSim {
             radius: Double(Art.frySprite(speciesIndex).width) * 0.5,
             tx: x, ty: y, retarget: 0,
             baby: true,
-            growAt: rng.range(120, 240),
+            growAt: config.fryGrowSeconds * rng.range(0.92, 1.08),
             bold: rng.range(0.3, 0.8),
             pace: rng.range(0.9, 1.1)
         ))

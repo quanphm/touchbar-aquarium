@@ -246,7 +246,9 @@ public enum Aquarium {
             py = max(0, min(floorY - sprite.height, py))
 
             if f.isLegendary {
-                let glow = Art.legendaryGlow(f.legendaryKind).withAlpha(58)
+                let kinds = Art.legendaryKinds
+                let k = kinds[((f.legendaryKind % kinds.count) + kinds.count) % kinds.count]
+                let glow = k.glow.withAlpha(k.shape == .mermaid ? 38 : 58)
                 for (dx, dy) in offsets {
                     sprite.drawSilhouette(into: &frame, x: px + dx, y: py + dy, color: glow, flipX: flip)
                 }

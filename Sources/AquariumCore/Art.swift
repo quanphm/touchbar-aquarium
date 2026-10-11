@@ -70,9 +70,11 @@ public struct LegendaryKind {
     public let eye: RGBA
     public let patch: RGBA
     public let glow: RGBA
+    /// Hair colours for a mermaid (up to 4). Empty for the koi.
+    public let hair: [RGBA]
 
     public init(_ name: String, shape: LegendaryShape = .koi, body: RGBA, belly: RGBA,
-                fin: RGBA, eye: RGBA, patch: RGBA, glow: RGBA) {
+                fin: RGBA, eye: RGBA, patch: RGBA, glow: RGBA, hair: [RGBA] = []) {
         self.name = name
         self.shape = shape
         self.body = body
@@ -81,6 +83,7 @@ public struct LegendaryKind {
         self.eye = eye
         self.patch = patch
         self.glow = glow
+        self.hair = hair
     }
 }
 
@@ -281,7 +284,12 @@ ffooe
                       eye: RGBA(hex: 0x161311), patch: RGBA(hex: 0xD93B2B), glow: RGBA(hex: 0xFFB59A)),
         LegendaryKind("Rainbow Mermaid", shape: .mermaid,
                       body: RGBA(hex: 0xF2C9A0), belly: RGBA(hex: 0xFFE6C8), fin: RGBA(hex: 0x35C4A0),
-                      eye: RGBA(hex: 0x2A2030), patch: RGBA(hex: 0xE85D9E), glow: RGBA(hex: 0xFFB0E0)),
+                      eye: RGBA(hex: 0x2A2030), patch: RGBA(hex: 0x9B5DE5), glow: RGBA(hex: 0xFFB0E0),
+                      hair: [RGBA(hex: 0xE85D9E), RGBA(hex: 0xF2A03C), RGBA(hex: 0x59C36A), RGBA(hex: 0x5B8DEF)]),
+        LegendaryKind("Purple Mermaid", shape: .mermaid,
+                      body: RGBA(hex: 0xF2C9A0), belly: RGBA(hex: 0xFFE6C8), fin: RGBA(hex: 0x9B6BE0),
+                      eye: RGBA(hex: 0x2A2030), patch: RGBA(hex: 0x6A4CC8), glow: RGBA(hex: 0xC9A0FF),
+                      hair: [RGBA(hex: 0x9B5DE5), RGBA(hex: 0xB07CE8), RGBA(hex: 0x7B4FC8), RGBA(hex: 0xD0A8F0)]),
     ]
 
     public static func legendarySprite(_ kind: Int) -> PixelSprite {
@@ -292,7 +300,7 @@ ffooe
                 "o": k.body, "b": k.belly, "p": k.patch, "f": k.fin, "e": k.eye,
             ])
         case .mermaid:
-            return rainbowMermaidSprite()
+            return mermaidSprite(k)
         }
     }
 
@@ -312,19 +320,21 @@ ffooe
 ......bbbbbb......
 """
 
-    // A rainbow mermaid, 10x8: gold crown, rainbow hair, shell top, teal tail.
+    // A mermaid, 8x7: a rounded head of rainbow hair, a face with dark eyes, a
+    // shell top, and a fish tail with a fluke. Hair/tail colours come from the kind.
     static let rainbowMermaidArt = """
-...gggg...
-..rrooyy..
-.rrsssyyu.
-.rsesesyu.
-.rrssssy..
-..bbbby...
-..tTTtt...
-.tTtttTt..
+..rrooy.
+.rrooyyy
+rrsssssy
+rrsesesy
+.bbbbby.
+.ttttt..
+ttTttTt.
 """
 
     public static let mermaidCrown = RGBA(hex: 0xF6C84A)
+    public static let mermaidBlush = RGBA(hex: 0xF7A8C0)
+    public static let mermaidMouth = RGBA(hex: 0xE05A6A)
     public static let mermaidHairPink = RGBA(hex: 0xE85D9E)
     public static let mermaidHairOrange = RGBA(hex: 0xF2A03C)
     public static let mermaidHairGreen = RGBA(hex: 0x59C36A)
@@ -335,18 +345,24 @@ ffooe
     public static let mermaidTail = RGBA(hex: 0x35C4A0)
     public static let mermaidTailDark = RGBA(hex: 0x1E8A72)
 
-    public static func rainbowMermaidSprite() -> PixelSprite {
-        PixelSprite(art: rainbowMermaidArt, [
+    /// A mermaid sprite coloured from its legendary kind (hair, skin, tail, bra).
+    public static func mermaidSprite(_ k: LegendaryKind) -> PixelSprite {
+        let hair = k.hair.count >= 4
+            ? k.hair
+            : [mermaidHairPink, mermaidHairOrange, mermaidHairGreen, mermaidHairBlue]
+        return PixelSprite(art: rainbowMermaidArt, [
             "g": mermaidCrown,
-            "r": mermaidHairPink,
-            "o": mermaidHairOrange,
-            "y": mermaidHairGreen,
-            "u": mermaidHairBlue,
-            "s": mermaidSkin,
-            "e": mermaidEye,
-            "b": mermaidBra,
-            "t": mermaidTail,
-            "T": mermaidTailDark,
+            "r": hair[0],
+            "o": hair[1],
+            "y": hair[2],
+            "u": hair[3],
+            "s": k.body,
+            "e": k.eye,
+            "k": mermaidBlush,
+            "m": mermaidMouth,
+            "b": k.patch,
+            "t": k.fin,
+            "T": k.fin.mixed(with: RGBA(hex: 0x000000), 0.35),
         ])
     }
 

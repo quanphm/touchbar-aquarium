@@ -39,10 +39,10 @@ in bursts; the puffer inflates when startled), and switchable **themes**
 
 ## The legendary resident
 
-Every tank includes a **legendary resident**, wreathed in a soft glow and
-trailing sparkles, gliding slower and grander than the rest: either a
-red-and-white ***Kohaku*** koi or a ***Rainbow Mermaid*** with rainbow hair and
-a teal tail. Its name shows in the menu-bar menu.
+Every tank includes **three legendary residents**, wreathed in a soft glow and
+trailing sparkles, gliding freely and grander than the rest: a red-and-white
+***Kohaku*** koi, a ***Rainbow Mermaid***, and a ***Purple Mermaid***. Their
+names show in the menu-bar menu.
 
 Render it to PNG:
 

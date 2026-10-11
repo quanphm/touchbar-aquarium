@@ -181,7 +181,11 @@ do {
 
     var has = AquariumSim()
     check("legendary present by default", has.legendaryName != nil, "name: \(has.legendaryName ?? "nil")")
-    check("legendary adds one fish", has.fish.count == has.config.fishCount + 1 + has.config.babyCount)
+    check("all legendary kinds spawn together",
+          Set(has.legendaryNames) == Set(Art.legendaryKinds.map { $0.name }),
+          "\(has.legendaryNames)")
+    check("legendary adds one fish each",
+          has.fish.count == has.config.fishCount + Art.legendaryKinds.count + has.config.babyCount)
     run(&has, seconds: 30)
     let inside = has.fish.allSatisfy { $0.x >= 0 && $0.x <= Double(has.config.width) }
     check("legendary stays in bounds", inside)
@@ -316,7 +320,7 @@ do {
     var cfg = TankConfig()
     cfg.fryGrowSeconds = 8
     cfg.fryBirthSeconds = 12
-    cfg.maxFish = cfg.fishCount + cfg.babyCount + 3   // = 13
+    cfg.maxFish = cfg.fishCount + Art.legendaryKinds.count + cfg.babyCount + 3
     var sim = AquariumSim(config: cfg)
     let babies0 = sim.fish.filter { $0.baby }.count
     let startCount = sim.fish.count
@@ -340,8 +344,8 @@ do {
 do {
     let names = Set(Art.species.map { $0.name })
     check("betta and goldfish were added", names.contains("betta") && names.contains("goldfish"))
-    check("legendary kinds are Kohaku and the Rainbow Mermaid",
-          Art.legendaryKinds.map { $0.name } == ["Kohaku", "Rainbow Mermaid"])
+    check("legendary kinds are the koi and two mermaids",
+          Art.legendaryKinds.map { $0.name } == ["Kohaku", "Rainbow Mermaid", "Purple Mermaid"])
     check("the mermaid uses its own art",
           Art.legendaryKinds[1].shape == .mermaid
               && Art.legendarySprite(1).height > Art.legendarySprite(0).height)

@@ -46,7 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // (legendary name) when it lands.
         controller.onTankChanged = { [weak self] in self?.rebuildMenu() }
         setupStatusItem()
-        LayoutLog.note("legendary", controller.sim.legendaryName ?? "none")
+        LayoutLog.note("legendary", controller.sim.legendaryNames.joined(separator: ", "))
 
         alwaysOn = presenter.enable()
         if !alwaysOn {
@@ -84,8 +84,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func rebuildMenu() {
         let menu = NSMenu()
 
-        if let name = controller.sim.legendaryName {
-            let legend = NSMenuItem(title: "Legendary resident: \(name)", action: nil, keyEquivalent: "")
+        let legends = controller.sim.legendaryNames
+        if !legends.isEmpty {
+            let legend = NSMenuItem(title: "Legendary residents: \(legends.joined(separator: ", "))", action: nil, keyEquivalent: "")
             legend.isEnabled = false
             menu.addItem(legend)
             menu.addItem(.separator())

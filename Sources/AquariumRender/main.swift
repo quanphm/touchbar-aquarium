@@ -53,7 +53,7 @@ let opts = parseArgs()
 
 if opts.sprites {
     let row: [PixelSprite] = [
-        Art.legendarySprite(0), Art.legendarySprite(1),
+        Art.legendarySprite(0), Art.legendarySprite(1), Art.legendarySprite(2),
         Art.fishSprite(9), Art.fishSprite(8), Art.fishSprite(10), Art.fishSprite(0),
         Art.fishSprite(11), Art.fishSprite(12),
         Art.critterSprite(0), Art.critterSprite(1), Art.critterSprite(2),
@@ -87,7 +87,7 @@ case "reef": config.palette = .reef
 default: config.palette = .freshwater
 }
 var sim = AquariumSim(config: config)
-if let name = sim.legendaryName { print("legendary resident: \(name)") }
+if !sim.legendaryNames.isEmpty { print("legendary residents: \(sim.legendaryNames.joined(separator: ", "))") }
 
 // Settle the tank.
 var t = 0.0
