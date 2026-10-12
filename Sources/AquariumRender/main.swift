@@ -21,17 +21,19 @@ struct Options {
     var sprites = false   // render a lineup of key sprites instead of the tank
     var viewport: Int?    // render only a window this wide (art px), scrolled
     var camera: Int = 0   // art-px offset of that window
+    var fps = 12.0         // playback rate for animated output (.gif)
 }
 
 func parseArgs() -> Options {
     var o = Options()
     let args = CommandLine.arguments
     var i = 1
+    var stepGiven = false
     while i < args.count {
         switch args[i] {
         case "--out": i += 1; if i < args.count { o.out = args[i] }
         case "--strip": i += 1; if i < args.count { o.strip = Int(args[i]) ?? o.strip }
-        case "--step": i += 1; if i < args.count { o.step = Double(args[i]) ?? o.step }
+        case "--step": i += 1; if i < args.count { o.step = Double(args[i]) ?? o.step; stepGiven = true }
         case "--warmup": i += 1; if i < args.count { o.warmup = Double(args[i]) ?? o.warmup }
         case "--scale": i += 1; if i < args.count { o.scale = Int(args[i]) ?? o.scale }
         case "--feed": i += 1; if i < args.count, let x = Double(args[i]) { o.feeds.append(x) }
@@ -42,10 +44,14 @@ func parseArgs() -> Options {
         case "--sprites": o.sprites = true
         case "--viewport": i += 1; if i < args.count, let v = Int(args[i]) { o.viewport = v }
         case "--camera": i += 1; if i < args.count { o.camera = Int(args[i]) ?? o.camera }
+        case "--fps": i += 1; if i < args.count { o.fps = Double(args[i]) ?? o.fps }
         default: break
         }
         i += 1
     }
+    // An animated GIF plays at real time: default the frame step to the frame
+    // duration unless the caller pinned it.
+    if !stepGiven, o.out.lowercased().hasSuffix(".gif") { o.step = 1.0 / max(1, o.fps) }
     return o
 }
 
@@ -71,7 +77,10 @@ if opts.sprites {
         s.draw(into: &f, x: x, y: max(0, totalH - 2 - s.height))
         x += s.width + gap
     }
-    if let url = writePNG(f, scale: max(1, opts.scale), to: opts.out) {
+    let wrote = opts.out.lowercased().hasSuffix(".gif")
+        ? writeGIF([f], scale: max(1, opts.scale), fps: opts.fps, to: opts.out)
+        : writePNG(f, scale: max(1, opts.scale), to: opts.out)
+    if let url = wrote {
         print("Wrote \(url.path) (sprite lineup)")
         exit(0)
     }
@@ -118,6 +127,16 @@ for _ in 0..<max(1, opts.strip) {
 }
 
 let combined = combineVertically(frames, gap: 2)
+
+if opts.out.lowercased().hasSuffix(".gif") {
+    guard let url = writeGIF(frames, scale: max(1, opts.scale), fps: opts.fps, to: opts.out) else {
+        FileHandle.standardError.write(Data("failed to write GIF\n".utf8))
+        exit(1)
+    }
+    print("Wrote \(url.path)  (\(frames.count) frame(s) @ \(opts.fps)fps, art \(sim.config.width)x\(sim.config.height))")
+    exit(0)
+}
+
 guard let url = writePNG(combined, scale: max(1, opts.scale), to: opts.out) else {
     FileHandle.standardError.write(Data("failed to write PNG\n".utf8))
     exit(1)
@@ -157,7 +176,8 @@ func cgImage(from frame: Frame) -> CGImage? {
     )
 }
 
-func writePNG(_ frame: Frame, scale: Int, to path: String) -> URL? {
+/// Nearest-neighbour upscale, so pixel art stays crisp at `scale`.
+func scaledImage(_ frame: Frame, scale: Int) -> CGImage? {
     guard let img = cgImage(from: frame) else { return nil }
     let W = frame.width * scale
     let H = frame.height * scale
@@ -171,7 +191,11 @@ func writePNG(_ frame: Frame, scale: Int, to path: String) -> URL? {
     ctx.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
     ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
     ctx.draw(img, in: CGRect(x: 0, y: 0, width: W, height: H))
-    guard let out = ctx.makeImage() else { return nil }
+    return ctx.makeImage()
+}
+
+func writePNG(_ frame: Frame, scale: Int, to path: String) -> URL? {
+    guard let out = scaledImage(frame, scale: scale) else { return nil }
 
     let url = URL(fileURLWithPath: path)
     try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -179,6 +203,34 @@ func writePNG(_ frame: Frame, scale: Int, to path: String) -> URL? {
         return nil
     }
     CGImageDestinationAddImage(dest, out, nil)
+    guard CGImageDestinationFinalize(dest) else { return nil }
+    return url
+}
+
+/// Write an animated GIF. Frame delay comes from `1 / fps`; the animation loops
+/// forever. ImageIO picks the palette, which is fine for this limited-color art.
+func writeGIF(_ frames: [Frame], scale: Int, fps: Double, to path: String) -> URL? {
+    guard !frames.isEmpty else { return nil }
+    let url = URL(fileURLWithPath: path)
+    try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    guard let dest = CGImageDestinationCreateWithURL(
+        url as CFURL, UTType.gif.identifier as CFString, frames.count, nil
+    ) else { return nil }
+
+    let loop: [CFString: Any] = [kCGImagePropertyGIFLoopCount: 0]
+    CGImageDestinationSetProperties(dest, [kCGImagePropertyGIFDictionary: loop] as CFDictionary)
+
+    let delay = 1.0 / max(1.0, fps)
+    let frameProps: [CFString: Any] = [
+        kCGImagePropertyGIFDictionary: [
+            kCGImagePropertyGIFDelayTime: delay,
+            kCGImagePropertyGIFUnclampedDelayTime: delay,
+        ],
+    ]
+    for f in frames {
+        guard let img = scaledImage(f, scale: scale) else { return nil }
+        CGImageDestinationAddImage(dest, img, frameProps as CFDictionary)
+    }
     guard CGImageDestinationFinalize(dest) else { return nil }
     return url
 }

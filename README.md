@@ -7,7 +7,7 @@ A pixel-art freshwater aquarium that lives in the MacBook Pro Touch Bar (and
 in a small preview window). Built with Swift + AppKit, no Xcode required —
 Command Line Tools are enough.
 
-![The whole tank, end to end](out/freshwater.png)
+![The whole tank, end to end](out/freshwater.gif)
 
 ![What the Touch Bar actually shows](out/touchbar.png)
 
@@ -42,7 +42,7 @@ the whole tank rather than holding a territory, and they never shoal.
 Switch live from the menu-bar **Theme** submenu.
 
 **Freshwater**
-![Freshwater theme](out/freshwater.png)
+![Freshwater theme](out/freshwater.gif)
 
 **Deep Sea** — cold and bioluminescent
 ![Deep Sea theme](out/deep-sea.png)
@@ -143,8 +143,16 @@ Render frames straight to PNG so you can eyeball the art:
 swift run aquarium-render --strip 6 --step 0.6 --out out/strip.png --scale 3
 ```
 
+Any `--out` ending in `.gif` writes an animated GIF instead of a static
+PNG — frames captured `1 / fps` seconds apart, looping forever:
+
+```sh
+swift run aquarium-render --theme freshwater --seed 42 --scale 6 --fps 12 --strip 96 --out out/freshwater.gif
+```
+
 Options: `--strip N` frames, `--step` seconds between them, `--warmup` seconds
-before capture, `--scale` integer upscale, `--feed X` drop food at column X,
+before capture, `--scale` integer upscale, `--fps N` playback rate for GIFs,
+`--feed X` drop food at column X,
 `--viewport W --camera X` render a W-wide window of the wide tank,
 `--theme freshwater|deepsea`, `--hour H` pin the time of day, `--seed N` pin
 the world, `--legendary` force a legendary resident, and `--sprites` to render
