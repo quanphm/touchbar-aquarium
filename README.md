@@ -7,7 +7,9 @@ A pixel-art freshwater aquarium that lives in the MacBook Pro Touch Bar (and
 in a small preview window). Built with Swift + AppKit, no Xcode required —
 Command Line Tools are enough.
 
-![The tank](out/freshwater.png)
+![The whole tank, end to end](out/freshwater.png)
+
+![What the Touch Bar actually shows](out/touchbar.png)
 
 ## What it is
 
@@ -17,37 +19,23 @@ coral, sand castles, and layered reef silhouettes**, **dappled caustic light**, 
 plant bed, light rays, drifting **bioluminescent plankton**, and bubbling
 columns. Corals and plankton **glow**, brightest after dark.
 
-**The cast:** a striped **clownfish**, a round **pufferfish**, a pulsing,
-glowing **jellyfish**, **three random schoolers** (from neon tetra, guppy,
-danio, platy, rasbora, cherry barb, cory, angelfish, **betta**, **goldfish**),
-and one **legendary resident**. Down on the sand live a **snail**, **two
-shrimp**, and a **starfish**.
+**The cast:** a striped **clownfish**, a round **pufferfish**, **two jellyfish**,
+**three random schoolers** (from neon tetra, guppy, danio, platy, rasbora,
+cherry barb, cory, angelfish, **betta**, **goldfish**), and **three legendary
+residents**. Down on the sand live a **snail**, **two shrimp**, a **starfish**,
+and a **crab**.
 
-Fish swim to their own destinations, hold a preferred depth and pace, keep
-their distance, avoid the glass, and rise to food you drop. Each fish keeps a
-**hidden fullness tracker**: when it's full it ignores food and drifts away,
-then gets hungry again as it digests. **Schoolers shoal** together, every fish
-has its own **personality** (bold/shy, fast/slow), and **baby fry grow into
-adults** over about an hour — as a **random species** — with a new fry roughly
-every two hours, up to a population cap of 20. The
-jellyfish ignores all that — it pulses upward, sinks, and drifts.
+Also in the tank: a **day/night cycle** on a 20-minute clock (fish are lively
+by day and languid by night, and the water dims), **species personalities**
+(guppies and danios dart in bursts; the puffer inflates when startled), and
+switchable **themes** (Freshwater / Deep Sea).
 
-Also in the tank: a **day/night cycle** (fish are lively by day and languid by
-night, and the water dims), **species personalities** (guppies and danios dart
-in bursts; the puffer inflates when startled), and switchable **themes**
-(Freshwater / Deep Sea).
-
-## The legendary resident
+## The legendary residents
 
 Every tank includes **three legendary residents**, wreathed in a soft glow and
 trailing sparkles, gliding freely and grander than the rest: a red-and-white
-***Kohaku*** koi, a ***Rainbow Mermaid***, and a ***Purple Mermaid***.
-
-Render it to PNG:
-
-```sh
-swift run aquarium-render --scale 6 --out out/tank.png
-```
+***Kohaku*** koi, a ***Rainbow Mermaid***, and a ***Purple Mermaid***. They roam
+the whole tank rather than holding a territory, and they never shoal.
 
 ## Themes
 
@@ -61,24 +49,6 @@ Switch live from the menu-bar **Theme** submenu.
 
 > Rendered at 6× straight from the simulation; the Touch Bar shows the same tank at 3×.
 
-## Always-on vs frontmost
-
-Apple's public `NSTouchBar` API only shows your bar while your app is the
-frontmost app. To keep the tank visible **while you work in other apps**, the
-app uses Apple's private *system-modal* Touch Bar API (the same mechanism Pock,
-MTMR, and BetterTouchTool use):
-
-- `NSTouchBar.presentSystemModalTouchBar(_:placement:systemTrayItemIdentifier:)`
-- `DFRElementSetControlStripPresenceForIdentifier` / `DFRSystemModalShowsCloseBoxWhenFrontMost`
-
-The private calls are resolved purely at runtime (Objective-C runtime + `dlsym`
-in `Sources/TouchBarPrivate`), so nothing private is linked at build time and
-the app degrades to frontmost-only if the API ever disappears.
-
-> ⚠️ Private API means this is **not App Store distributable**, and Apple could
-> change it in future macOS releases. It is a personal-use hack, exactly like
-> Pock/MTMR.
-
 ### Controlling it
 
 The app runs as a background (menu-bar) app — look for the **fish icon in the
@@ -87,10 +57,9 @@ menu bar**:
 - **Always show on Touch Bar** — toggle the system-modal mode (on by default).
 - **Show Preview Window** — a normal window with the same tank.
 - **Theme** — switch between *Freshwater* and *Deep Sea*.
-- **New Tank** — re-roll a whole fresh tank (new layout, fish, and legendary).
+- **New Tank** — re-roll a whole fresh tank (new layout, fish, and legendaries).
   Six candidate layouts are generated and the best is chosen by **Jev** (see
   *Smart habitat* below), falling back to on-device heuristics with no key.
-- **Quit Touch Bar Aquarium**.
 
 A **fish icon is also added to the Control Strip** (right side of the Touch
 Bar); tap it to re-show the tank if it ever gets covered.
@@ -166,8 +135,6 @@ Or, without bundling:
 swift run AquariumBar
 ```
 
-Quit with **⌘Q** in the preview window (or `pkill -9 -f AquariumBar`).
-
 ## Dev loop (no GUI, no Touch Bar needed)
 
 Render frames straight to PNG so you can eyeball the art:
@@ -178,7 +145,14 @@ swift run aquarium-render --strip 6 --step 0.6 --out out/strip.png --scale 3
 
 Options: `--strip N` frames, `--step` seconds between them, `--warmup` seconds
 before capture, `--scale` integer upscale, `--feed X` drop food at column X,
-`--viewport W --camera X` render a W-wide window of the wide tank.
+`--viewport W --camera X` render a W-wide window of the wide tank,
+`--theme freshwater|deepsea`, `--hour H` pin the time of day, `--seed N` pin
+the world, `--legendary` force a legendary resident, and `--sprites` to render
+the cast as a lineup instead of a tank.
+
+Every sprite in the game, in one strip:
+
+![Sprite lineup](out/sprites.png)
 
 ## Checks
 
@@ -186,40 +160,3 @@ before capture, `--scale` integer upscale, `--feed X` drop food at column X,
 swift run aquarium-checks
 ```
 
-Proves the deep module's contract through its interface: stable fish count,
-fish never leave the tank, determinism for a fixed seed, food gets eaten (and a
-full fish ignores it until it digests), poking scatters fish, and bounds hold in
-a cramped tank. It also covers the habitat judge: layout snapshots are
-deterministic per seed, the plant-bed utility peaks at "comfortable", selection
-picks the highest total and resolves ties, the heuristic judge is deterministic,
-the key file is read and trimmed, and a failing judge falls back.
-
-## Design notes
-
-`AquariumSim` is the deep module: a tiny interface (`tick`, `feed`, `poke`,
-plus read-only `fish`/`bubbles`/`pellets`/`plants`) hiding a lot of behavior —
-wandering, separation, boundary steering, food seeking, fleeing, bubble
-emission, plant layout. Because it imports nothing, it runs headless in tests
-*and* in the PNG tool.
-
-`TankView` is deliberately dumb: it renders sim state to a `Frame` and blits
-it. The preview window and the Touch Bar item are the *same* `TankView`, so
-they can never drift apart.
-
-## Touch Bar facts (measured on MacBookPro17,1 / 13" M1)
-
-- Principal item area: **1085 × 30 pt** when the control strip is visible.
-- The tank is **1080 × 10** art px. The Touch Bar shows a **~360 × 10** window
-  of it at integer 3× (→ 1080 × 30) and **scrolls horizontally** across the
-  rest, giving the fish more room to roam than fits on screen at once.
-
-## Roadmap
-
-- [x] Deep headless sim + pure renderer
-- [x] PNG dev tool + checks
-- [x] Preview window
-- [x] Touch Bar via public `NSTouchBar` (visible while the app is frontmost)
-- [x] **Always-on** adapter (private DFR system-modal API) so the tank stays
-      in the bar while you work in other apps
-- [ ] More species, feeding/poke tuning, day-night tint, save/restore
-- [ ] Optional: launch at login
