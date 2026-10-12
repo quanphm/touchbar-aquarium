@@ -9,8 +9,6 @@ Command Line Tools are enough.
 
 ![The whole tank, end to end](out/freshwater.gif)
 
-![What the Touch Bar actually shows](out/touchbar.png)
-
 ## What it is
 
 A living little tank, ~30pt tall, rendered at 3× so every pixel is crisp on the
@@ -37,37 +35,6 @@ trailing sparkles, gliding freely and grander than the rest: a red-and-white
 ***Kohaku*** koi, a ***Rainbow Mermaid***, and a ***Purple Mermaid***. They roam
 the whole tank rather than holding a territory, and they never shoal.
 
-## Themes
-
-Switch live from the menu-bar **Theme** submenu.
-
-**Freshwater**
-![Freshwater theme](out/freshwater.gif)
-
-**Deep Sea** — cold and bioluminescent
-![Deep Sea theme](out/deep-sea.png)
-
-> Rendered at 6× straight from the simulation; the Touch Bar shows the same tank at 3×.
-
-### Controlling it
-
-The app runs as a background (menu-bar) app — look for the **fish icon in the
-menu bar**:
-
-- **Always show on Touch Bar** — toggle the system-modal mode (on by default).
-- **Show Preview Window** — a normal window with the same tank.
-- **Theme** — switch between *Freshwater* and *Deep Sea*.
-- **New Tank** — re-roll a whole fresh tank (new layout, fish, and legendaries).
-  Six candidate layouts are generated and the best is chosen by **Jev** (see
-  *Smart habitat* below), falling back to on-device heuristics with no key.
-
-A **fish icon is also added to the Control Strip** (right side of the Touch
-Bar); tap it to re-show the tank if it ever gets covered.
-
-The tank is wider than the Touch Bar and **scrolls horizontally** — drag on the
-bar, or scroll horizontally in the preview window.
-
-
 ## Smart habitat (TypeSafe / Jev)
 
 **New Tank** doesn't just roll a random scene — it generates six candidate
@@ -90,35 +57,6 @@ the tank always builds. Jev never touches fish motion or rendering.
 ```sh
 # Prove the live request path end-to-end:
 JEV_LIVE_TEST=1 swift run aquarium-checks
-```
-
-
-## Layout
-
-```
-Sources/
-  AquariumCore/     Pure, headless, unit-tested. Imports no UI framework.
-    Sim.swift       AquariumSim — the deep module (tick / feed / poke + state)
-    Render.swift    render(sim, into: Frame) — pure pixels
-    Sprite.swift    PixelSprite — ASCII art + palette -> pixels
-    Art.swift       Every color and sprite, in one place
-    Frame.swift     RGBA8 image
-    Random.swift    Seedable PRNG (deterministic worlds)
-  AquariumJev/      Ranks candidate habitats with Jev (HTTP), or on-device
-    LayoutSnapshot.swift   Text/JSON description of a tank's decor + plants
-    HabitatJudge.swift     Judge protocol, weighted scorer, offline fallback
-    JevClient.swift        Minimal POST /v1/systemone client
-    JevHabitatJudge.swift  The composition questions + weighted pick
-    JevKey.swift           Where the API key comes from
-  AquariumBar/      Thin AppKit adapter at the seam
-    Controller.swift         owns the sim, ticks it at 30fps, notifies views
-    TankView.swift           NSView that blits frames (nearest-neighbour, 3×)
-    TouchBarHost.swift       builds the NSTouchBar content
-    SystemModalPresenter.swift  always-on adapter (private API)
-    App.swift                menu-bar app + preview window
-  TouchBarPrivate/  Objective-C shim for the private system-modal API
-  AquariumRender/   Dev tool: renders the sim to PNG (no GUI needed)
-  AquariumChecks/   Self-contained checks (works without XCTest/Xcode)
 ```
 
 ## Build & run
