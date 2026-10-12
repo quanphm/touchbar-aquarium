@@ -4,10 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A pixel-art freshwater aquarium that lives in the MacBook Pro Touch Bar (and
-in a small preview window). Built with Swift + AppKit, no Xcode required —
-Command Line Tools are enough.
+in a small preview window).
 
-![The whole tank, end to end](out/freshwater.gif)
+![A close-up of the reef](out/freshwater.gif)
 
 ## What it is
 
@@ -55,7 +54,6 @@ back to `HeuristicHabitatJudge` — a pure-Swift version of the same score — s
 the tank always builds. Jev never touches fish motion or rendering.
 
 ```sh
-# Prove the live request path end-to-end:
 JEV_LIVE_TEST=1 swift run aquarium-checks
 ```
 
@@ -99,10 +97,4 @@ the cast as a lineup instead of a tank.
 Every sprite in the game, in one strip:
 
 ![Sprite lineup](out/sprites.png)
-
-## Checks
-
-```sh
-swift run aquarium-checks
-```
 
