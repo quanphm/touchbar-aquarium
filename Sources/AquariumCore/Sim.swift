@@ -86,6 +86,9 @@ public struct Fish {
     /// The start time is a safety valve: no fish may be parked indefinitely.
     public var wayFrom: Int = -1
     public var waySince: Double = 0
+    /// Set when another fish has yielded to this one, so it knows to commit to
+    /// the pass rather than crawl through the gap.
+    public var hasWay: Bool = false
 
     /// One of the mermaid legendary residents (not the Kohaku koi). Mermaids
     /// don't feed — they drift and glow, and leave the food to the fish.
@@ -525,7 +528,7 @@ public struct AquariumSim {
     /// — right of way goes to the quicker fish, with the lower index winning a
     /// tie — so both fish reach the same verdict independently without having
     /// to coordinate.
-    private func headOnConflict(_ i: Int) -> Int? {
+    private mutating func headOnConflict(_ i: Int) -> Int? {
         for j in 0..<fish.count where j != i {
             guard Art.species[fish[j].species].shape != .jelly else { continue }
             let dx = fish[i].x - fish[j].x
@@ -545,6 +548,10 @@ public struct AquariumSim {
             let iHasWay = fish[i].speed != fish[j].speed
                 ? fish[i].speed > fish[j].speed
                 : i < j
+            // Record it on both fish so the one with right of way knows to
+            // press on while the other eases off.
+            fish[i].hasWay = iHasWay
+            fish[j].hasWay = !iHasWay
             return iHasWay ? nil : j
         }
         return nil
@@ -604,11 +611,18 @@ public struct AquariumSim {
 
             // Light boid steering: schooling species shoal toward the centre and
             // heading of nearby schoolers. Kept gentle so they still roam.
-            if Art.schools(fish[i].species) {
+            //
+            // Legendaries are excluded explicitly. They carry a dummy
+            // `species` index of 0, which resolves to the neon tetra — a
+            // schooler — so without this the Kohaku koi shoals with the
+            // tetras and the tetras in turn shoal *toward the koi*, piling
+            // fish onto it. They then jam, which is exactly the nose-to-nose
+            // standoff between a betta and the koi.
+            if !fish[i].isLegendary, Art.schools(fish[i].species) {
                 var cx = 0.0, cy = 0.0, avx = 0.0, avy = 0.0, count = 0.0
                 let r2 = 55.0 * 55.0
                 for j in 0..<n where j != i {
-                    guard Art.schools(fish[j].species) else { continue }
+                    guard !fish[j].isLegendary, Art.schools(fish[j].species) else { continue }
                     let dx = fish[j].x - fish[i].x
                     let dy = fish[j].y - fish[i].y
                     if dx * dx + dy * dy < r2 {
@@ -698,7 +712,7 @@ public struct AquariumSim {
                 // has simply gone far enough past. Without the receding test
                 // a fish stays parked for as long as anything swims nearby.
                 let receding = fish[giving].vx * dx > 0
-                if abs(dx) > clear || receding || time - fish[i].waySince > 4.0 {
+                if abs(dx) > clear || receding || time - fish[i].waySince > 3.0 {
                     fish[i].wayFrom = -1
                 }
             } else {
@@ -709,8 +723,23 @@ public struct AquariumSim {
                 fish[i].waySince = time
             }
             if fish[i].wayFrom >= 0 {
-                dvx *= 0.2
-                dvy *= 0.2
+                // Give way properly: ease off *and* drift back, so the pair
+                // opens up instead of standing nose to nose. Merely braking
+                // left the standoff in place until the timer expired, and the
+                // pair shuffled back and forth for many seconds — which reads
+                // as two fish stuck together.
+                let g = fish[i].wayFrom
+                let back: Double = (g >= 0 && g < n)
+                    ? (fish[i].x > fish[g].x ? 1 : (fish[i].x < fish[g].x ? -1 : 0))
+                    : 0
+                dvx = dvx * 0.15 + back * fish[i].speed * 0.5
+                dvy *= 0.3
+            } else if fish[i].hasWay {
+                // Somebody is holding station for us. Commit to the pass —
+                // creeping through at cruise speed leaves the standoff hanging
+                // around long enough to look like a jam.
+                dvx *= 1.35
+                dvy *= 1.2
             }
             if sepW > 0.001 {
                 // Weighted average of the neighbours' push directions, so one
@@ -721,6 +750,7 @@ public struct AquariumSim {
                 dvx += (sepX / sepW) * fish[i].speed * 0.6
                 dvy += (sepY / sepW) * fish[i].speed * 0.6
             }
+            fish[i].hasWay = false
 
             // Flee a poke.
             if fearTimer > 0 {
