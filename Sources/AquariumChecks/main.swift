@@ -537,6 +537,65 @@ do {
           + "\(pelletsToFull(from: 0.2)) from 0.2 (starving)")
 }
 
+// The eel: the tank's one long, low, undulating fish.
+do {
+    let eels = Art.species.indices.filter { Art.species[$0].shape == .eel }
+    check("the tank has an eel species", eels.count == 1, "\(eels.count) found")
+    check("an eel can be spawned", Art.schoolerPool.contains(eels[0]))
+
+    // It should be the longest thing in the tank — that's the whole point of
+    // it existing in a 1080-wide strip.
+    let longest = (0..<Art.species.count)
+        .map { (i: $0, w: Art.fishSprite($0).width) }
+        .max { $0.w < $1.w }
+    check("the eel is the longest fish", longest?.i == eels[0],
+          "longest is species \(longest?.i ?? -1) at \(longest?.w ?? 0)px")
+
+    // Undulation is the eel's alone; everything else flaps a rigid tail.
+    let undulating = (0..<Art.species.count).filter { Art.undulation(for: Art.species[$0].shape) > 0 }
+    check("only the eel undulates", undulating == eels, "\(undulating) undulate")
+
+    // And a tank should actually produce one now and then.
+    var found = 0
+    for s in 1...8 {
+        var cfg = TankConfig(); cfg.seed = UInt64(s) &* 104_729
+        let sim = AquariumSim(config: cfg)
+        if sim.fish.contains(where: { Art.species[$0.species].shape == .eel }) { found += 1 }
+    }
+    check("eels turn up in real tanks", found >= 1, "\(found)/8 tanks had one")
+}
+
+// The crab: the only creature that moves sideways.
+do {
+    var sim = AquariumSim()
+    let crabs = sim.critters.filter { $0.kind == 3 }
+    check("every tank has a crab", crabs.count == 1, "\(crabs.count) found")
+
+    let crab = Art.critterSprite(3)
+    check("the crab is wider than it is tall", crab.width > crab.height,
+          "\(crab.width)x\(crab.height)")
+
+    // It should move, and it should move sideways rather than drift. The crab
+    // starts with a 1-4s timer and may sit out a burst, so give it a window
+    // long enough to actually see it go.
+    let start = crabs[0].x
+    var maxSpeed = 0.0
+    var pathLength = 0.0
+    var prevX = start
+    for _ in 0..<600 {
+        sim.tick(dt: 1.0 / 60.0)
+        if let c = sim.critters.first(where: { $0.kind == 3 }) {
+            maxSpeed = max(maxSpeed, abs(c.vx))
+            pathLength += abs(c.x - prevX)
+            prevX = c.x
+        }
+    }
+    // Total distance, not net displacement: a crab that scuttles out and back
+    // barely moves overall but covers plenty of sand.
+    check("the crab scuttles along the sand", pathLength > 20 && maxSpeed > 3,
+          "covered \(Int(pathLength))px, peak speed \(String(format: "%.1f", maxSpeed)) px/s")
+}
+
 print("\n\(checks - failures)/\(checks) checks passed")
 if failures > 0 {
     FileHandle.standardError.write(Data("\(failures) check(s) failed\n".utf8))

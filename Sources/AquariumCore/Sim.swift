@@ -13,7 +13,7 @@ public struct TankConfig {
     public var babyCount: Int = 3
     /// Population cap. Fry grow up and new fry are born, but the tank never
     /// exceeds this many fish, so it can't crowd.
-    public var maxFish: Int = 20
+    public var maxFish: Int = 25
     /// Seconds for a fry to mature into an adult (about an hour).
     public var fryGrowSeconds: Double = 3600
     /// Seconds between new fry being born (about two hours).
@@ -1090,6 +1090,11 @@ public struct AquariumSim {
         critters.append(Critter(kind: 2, x: rng.range(40, Double(config.width - 40)),
                                 y: starfishY, vx: 0,
                                 phase: rng.range(0, 6.28), timer: rng.range(3, 10)))
+        // One crab. It scuttles sideways in bursts — the only thing in the
+        // tank that moves laterally rather than swimming along or drifting up.
+        critters.append(Critter(kind: 3, x: rng.range(40, Double(config.width - 40)),
+                                y: Double(floorY) - Double(Art.critterSprite(3).height), vx: 0,
+                                phase: rng.range(0, 6.28), timer: rng.range(1, 4)))
     }
 
     private mutating func updateCritters(_ dt: Double) {
@@ -1113,6 +1118,22 @@ public struct AquariumSim {
                 critters[i].x += critters[i].vx * dt
                 critters[i].vx *= max(0, 1 - 2 * dt)
                 critters[i].y = Double(floorY) - Double(Art.critterSprite(2).height)
+            } else if critters[i].kind == 3 {
+                // Crab: scuttles in quick sideways bursts, then freezes. The
+                // dart speed and hard stop are what make it read as a crab
+                // rather than a slowly drifting shell.
+                if critters[i].timer <= 0 {
+                    critters[i].timer = rng.range(0.5, 2.0)
+                    critters[i].vx = rng.unit() < 0.35
+                        ? 0
+                        : rng.range(5, 11) * (rng.unit() < 0.5 ? -1 : 1)
+                }
+                critters[i].x += critters[i].vx * dt
+                // Gentle decay so a burst actually covers ground — the shrimp's
+                // sharper one dies inside a pixel. Expressed per second so it
+                // reads the same at 30 and 60 fps.
+                critters[i].vx *= max(0, 1 - 1.2 * dt)
+                critters[i].y = Double(floorY) - Double(Art.critterSprite(3).height)
             } else {
                 // Shrimp: hop-scotches along the sand in little bursts.
                 if critters[i].timer <= 0 {

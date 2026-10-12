@@ -12,6 +12,7 @@ public enum FishShape {
     case betta      // showy, long flowing fins
     case goldfish   // round-bodied and golden
     case jelly      // pulsing jellyfish (drifter)
+    case eel        // long and low, undulating along its length
 }
 
 /// One recolorable species. `depth` is where it likes to hang (0 = surface,
@@ -194,11 +195,15 @@ public enum Art {
         FishStyle("jellyfish", shape: .jelly, body: RGBA(hex: 0xB8A6F0), belly: RGBA(hex: 0xEDE6FF), fin: RGBA(hex: 0x8E7AD0), eye: RGBA(hex: 0x201830), depth: 0.5, speedScale: 0.5, darts: 0.0, glow: RGBA(hex: 0xC7B4FF)),
         FishStyle("betta", shape: .betta, body: RGBA(hex: 0x5B3FC0), belly: RGBA(hex: 0xC9BCF0), fin: RGBA(hex: 0xE23B6D), eye: RGBA(hex: 0x120C18), depth: 0.38, speedScale: 0.75, darts: 0.12),
         FishStyle("goldfish", shape: .goldfish, body: RGBA(hex: 0xF5B301), belly: RGBA(hex: 0xFFE7A0), fin: RGBA(hex: 0xE08A00), eye: RGBA(hex: 0x1A1206), depth: 0.52, speedScale: 0.7, darts: 0.1),
+        // The eel is the tank's one ribbon-shaped fish. Slow and steady, holds
+        // mid-depth, never darts — it is the only thing in here that moves by
+        // undulation rather than swimming.
+        FishStyle("eel", shape: .eel, body: RGBA(hex: 0x3E7A5C), belly: RGBA(hex: 0x8FD6A8), fin: RGBA(hex: 0x2A5A42), eye: RGBA(hex: 0x0E1A14), depth: 0.46, speedScale: 0.55, darts: 0.0),
     ]
 
     /// Species pool for the "3 other fishes" slots (everything but the
     /// headline cast: clownfish, puffer, jellyfish).
-    public static let schoolerPool: [Int] = [0, 1, 2, 3, 4, 5, 6, 7, 11, 12]
+    public static let schoolerPool: [Int] = [0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13]
 
     private static var spriteCache: [Int: PixelSprite] = [:]
 
@@ -236,7 +241,16 @@ public enum Art {
         case .betta: return 4
         case .goldfish: return 2
         case .puffer, .jelly: return 0
+        // The eel has no rigid tail — it undulates along its whole length,
+        // which the renderer handles separately (see `undulation(for:)`).
+        case .eel: return 0
         }
+    }
+
+    /// Peak column offset for a travelling wave down the body. 0 = no wave,
+    /// and every fish except the eel uses a rigid tail flap instead.
+    public static func undulation(for shape: FishShape) -> Double {
+        shape == .eel ? 1.0 : 0.0
     }
 
     /// Whether a species shoals: the slim schoolers (tetras, danios, barbs,
@@ -430,6 +444,15 @@ ttTttTt.
             ..t.t..
             ..t.t..
             """
+        case .eel:
+            // Long and low — the only sprite in the tank shaped for a 1080x10
+            // strip. Head right, trailing fin left; rendered as a travelling
+            // wave rather than a rigid tail flap.
+            return """
+            ...f................
+            ffoooooooooooooooe.
+            ..fffffffffffffff..
+            """
         }
     }
 
@@ -462,6 +485,23 @@ fffffffff
 ffoooo
 """
 
+    /// A blue crab, 8x5, scuttling left or right. Wider than it is tall, like
+    /// everything else that lives on the sand. The lighter top row gives the
+    /// carapace a bit of volume so it doesn't read as a flat blue box at this
+    /// size. Chars: o shell, h shell highlight, l legs/claws, e eye.
+    static let crabShape = """
+..ll..ll
+.hoooooh
+loee.ool
+.loooool
+..ll..ll
+"""
+
+    public static let crabShell = RGBA(hex: 0x5A8FC0)
+    public static let crabShellHi = RGBA(hex: 0x8FC0E8)
+    public static let crabLeg = RGBA(hex: 0x35597E)
+    public static let crabEye = RGBA(hex: 0x0E1620)
+
     private static var critterCache: [Int: PixelSprite] = [:]
 
     public static func critterSprite(_ kind: Int) -> PixelSprite {
@@ -478,6 +518,8 @@ ffoooo
             ])
         } else if kind == 2 {
             sprite = PixelSprite(art: starfishShape, ["s": starfishBody, "S": starfishHi])
+        } else if kind == 3 {
+            sprite = PixelSprite(art: crabShape, ["o": crabShell, "h": crabShellHi, "l": crabLeg, "e": crabEye])
         } else {
             sprite = PixelSprite(art: shrimpShape, ["o": shrimpBody, "f": shrimpFin])
         }
