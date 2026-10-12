@@ -42,6 +42,10 @@ public struct TankConfig {
     /// the whole population converges on one drop. Scaled per fish by cruise
     /// speed, so faster fish spot it from a little further out.
     public var feedReach: Double = 70
+    /// Fullness gained per pellet. A fish needs several pellets to reach
+    /// `fullThreshold`, so one flake doesn't end the meal — it keeps hunting
+    /// for the next while it's still hungry.
+    public var satietyPerPellet: Double = 0.3
 
     public init() {}
 }
@@ -672,7 +676,10 @@ public struct AquariumSim {
                     dvy += (dy / d) * pull
                     if d < 2.0 {
                         eatPellet(near: fish[i])
-                        fish[i].satiety = 1.0
+                        // A pellet is a mouthful, not a whole meal. Taking a
+                        // few to get full keeps a hungry fish hunting for the
+                        // next one instead of going quiet after the first.
+                        fish[i].satiety = min(1.0, fish[i].satiety + config.satietyPerPellet)
                     }
                 }
             }

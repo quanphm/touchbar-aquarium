@@ -502,6 +502,41 @@ do {
     check("nearby food is still eaten", fed == hunters, "\(fed)/\(hunters) fed")
 }
 
+// A single pellet is a mouthful, not a meal: a hungry fish that eats one must
+// still be hungry afterwards.
+do {
+    var cfg = TankConfig()
+    cfg.satietyDecay = 0
+    cfg.seed = 991
+    var sim = AquariumSim(config: cfg)
+    let isHunter: (Fish) -> Bool = { !$0.isMermaid && Art.species[$0.species].shape != .jelly }
+    // Track by index — fish are only ever appended, never removed, and several
+    // can share a species, so position in the array is the stable handle.
+    let candidates = sim.fish.indices.filter { isHunter(sim.fish[$0]) }
+    if let idx = candidates.min(by: { sim.fish[$0].satiety < sim.fish[$1].satiety }) {
+        let start = sim.fish[idx].satiety
+        sim.feed(x: sim.fish[idx].x)
+        run(&sim, seconds: 2.5)
+        let after = sim.fish[idx].satiety
+        let gained = after - start
+        check("one pellet does not fill a fish",
+              gained > 0 && gained <= cfg.satietyPerPellet + 0.001 && after < cfg.fullThreshold,
+              "satiety \(String(format: "%.2f", start)) -> \(String(format: "%.2f", after))")
+    }
+    // Report the real range, not the count from zero: fish spawn part-full, so
+    // a nearly-full one still tops up in a single pellet and that is correct.
+    func pelletsToFull(from start: Double) -> Int {
+        var s = start, n = 0
+        while s < cfg.fullThreshold && n < 99 { s += cfg.satietyPerPellet; n += 1 }
+        return n
+    }
+    check("a pellet is a mouthful, not a whole meal",
+          cfg.satietyPerPellet < cfg.fullThreshold / 2,
+          "\(cfg.satietyPerPellet) per pellet: "
+          + "\(pelletsToFull(from: 0.7)) pellet(s) from 0.7 (nearly full), "
+          + "\(pelletsToFull(from: 0.2)) from 0.2 (starving)")
+}
+
 print("\n\(checks - failures)/\(checks) checks passed")
 if failures > 0 {
     FileHandle.standardError.write(Data("\(failures) check(s) failed\n".utf8))
