@@ -18,7 +18,16 @@ final class AquariumController: @unchecked Sendable {
     /// Horizontal camera over the (wider) tank. The user scrolls it (Touch Bar
     /// drag, or the preview window's scroll wheel); it never moves on its own.
     private(set) var cameraX: Double = 0
-    private let viewportArtWidth: Double = 360   // nominal visible width
+    /// How much tank is visible across the clear part of the bar, in art pixels.
+    /// Set by the view once it knows its real width — the Touch Bar's rounded
+    /// corners eat into it, so it isn't the nominal bar width.
+    var viewportArtWidth: Double = 349
+
+    /// Points inset at each end of the Touch Bar for the rounded corners.
+    /// The panel doesn't reach the bezel there, so content drawn in that
+    /// stretch is swallowed. How much it actually eats varies by model and
+    /// can't be measured from here, so it's tunable from the menu.
+    var cornerInset: Double = 28
 
     private var theme: Palette = .freshwater
     private var themeName: String = "freshwater"
@@ -97,6 +106,11 @@ final class AquariumController: @unchecked Sendable {
     }
 
     func addObserver(_ view: NSView) { observers.add(view) }
+
+    /// Force a redraw of every live view — used after a setting changes.
+    func refreshViews() {
+        for view in observers.allObjects { view.needsDisplay = true }
+    }
 
     func start() {
         guard timer == nil else { return }

@@ -34,6 +34,19 @@ final class SystemModalPresenter {
         return TBPresentSystemModal(bar, 1, Self.trayID)
     }
 
+    /// Re-claim the bar after macOS has dropped it.
+    ///
+    /// A plain `present()` is not enough. macOS minimizes a system-modal bar
+    /// when the machine goes idle, and presenting again *reports success*
+    /// while leaving the bar dark — the stale presentation has to be torn
+    /// down and a fresh bar built before it will come back.
+    @discardableResult
+    func reassert() -> Bool {
+        if let bar { TBDismissSystemModal(bar) }
+        bar = nil
+        return present()
+    }
+
     func disable() {
         if let bar { TBDismissSystemModal(bar) }
         bar = nil

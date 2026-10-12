@@ -502,6 +502,35 @@ do {
     check("nearby food is still eaten", fed == hunters, "\(fed)/\(hunters) fed")
 }
 
+// The Touch Bar's rounded corners eat into the ends of the bar, so the view
+// bleeds extra tank past its camera window. That bleed must fill with the
+// tank's own edge column, not a black gap.
+do {
+    let sim = AquariumSim()
+    var full = Frame(width: sim.config.width, height: sim.config.height)
+    Aquarium.render(sim, into: &full)
+
+    let bleed = 8
+    let win = sim.config.width - 60 - bleed   // full right-scroll, then bleed past the end
+    var frame = Frame(width: 60 + 2 * bleed, height: sim.config.height)
+    Aquarium.render(sim, into: &frame, startX: win)
+
+    var mismatched = 0
+    for y in 0..<frame.height {
+        for x in 0..<frame.width {
+            let want = min(sim.config.width - 1, max(0, x + win))
+            if frame.get(x, y) != full.get(want, y) { mismatched += 1 }
+        }
+    }
+    check("bleeding past the tank end replicates the edge column", mismatched == 0,
+          "\(mismatched) px differ")
+
+    // And it must be tank, not black: the last column should look like the
+    // tank's own last column.
+    let lastY = sim.config.height - 1
+    let isTank = frame.get(frame.width - 1, lastY) == full.get(sim.config.width - 1, lastY)
+    check("the corner is filled with tank, not black", isTank)
+}
 print("\n\(checks - failures)/\(checks) checks passed")
 if failures > 0 {
     FileHandle.standardError.write(Data("\(failures) check(s) failed\n".utf8))

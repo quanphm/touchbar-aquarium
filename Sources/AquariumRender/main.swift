@@ -21,6 +21,8 @@ struct Options {
     var sprites = false   // render a lineup of key sprites instead of the tank
     var viewport: Int?    // render only a window this wide (art px), scrolled
     var camera: Int = 0   // art-px offset of that window
+    var startX: Int?      // absolute tank x for frame column 0 (no camera clamp)
+    var bleed: Int?       // art px to render past each end (Touch Bar corners)
 }
 
 func parseArgs() -> Options {
@@ -42,6 +44,8 @@ func parseArgs() -> Options {
         case "--sprites": o.sprites = true
         case "--viewport": i += 1; if i < args.count, let v = Int(args[i]) { o.viewport = v }
         case "--camera": i += 1; if i < args.count { o.camera = Int(args[i]) ?? o.camera }
+        case "--startx": i += 1; if i < args.count { o.startX = Int(args[i]) }
+        case "--bleed": i += 1; if i < args.count { o.bleed = Int(args[i]) }
         default: break
         }
         i += 1
@@ -101,7 +105,13 @@ while t < opts.warmup {
 var frames: [Frame] = []
 for _ in 0..<max(1, opts.strip) {
     var f: Frame
-    if let vw = opts.viewport {
+    if let start = opts.startX {
+        // Reproduce exactly what the Touch Bar draws, corners and all: a frame
+        // that starts before the camera window and bleeds past the tank ends.
+        let w = (opts.viewport ?? sim.config.width) + 2 * (opts.bleed ?? 0)
+        f = Frame(width: w, height: sim.config.height)
+        Aquarium.render(sim, into: &f, startX: start)
+    } else if let vw = opts.viewport {
         f = Frame(width: vw, height: sim.config.height)
         Aquarium.render(sim, into: &f, cameraX: opts.camera)
     } else {

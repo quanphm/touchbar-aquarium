@@ -40,6 +40,8 @@ final class TankView: NSView {
     override func layout() {
         super.layout()
         LayoutLog.record(logTag, bounds.size)
+        // Let the controller clamp panning against the width we actually show.
+        if bounds.width > 0 { controller.viewportArtWidth = Double(safeArtWidth) }
     }
 
     // MARK: - Layout maths
@@ -49,9 +51,27 @@ final class TankView: NSView {
         max(1, (bounds.height / CGFloat(controller.sim.config.height)).rounded(.down))
     }
 
-    /// How much of the (wider) tank fits on screen, in art pixels.
+    /// How much tank fits across the full width, in art pixels.
+    private var fullArtWidth: Int {
+        max(1, Int((bounds.width / scale).rounded(.down)))
+    }
+
+    /// How much of the tank is shown across the part of the bar that isn't
+    /// rounded away. This is what the camera window maps to.
+    private var safeArtWidth: Int {
+        let inset = 2 * controller.cornerInset
+        return max(1, Int(((bounds.width - inset) / scale).rounded(.down)))
+    }
+
+    /// Extra art pixels rendered on each side of the camera window, which end
+    /// up under the rounded corners so those corners still show tank.
+    private var bleedArt: Int {
+        max(0, (fullArtWidth - safeArtWidth) / 2)
+    }
+
+    /// Art pixels actually rendered: the camera window plus its two bleeds.
     private var viewportWidth: Int {
-        max(1, min(controller.sim.config.width, Int((bounds.width / scale).rounded(.down))))
+        safeArtWidth + 2 * bleedArt
     }
 
     private var imageRect: NSRect {
@@ -61,10 +81,14 @@ final class TankView: NSView {
         return NSRect(x: (bounds.width - w) / 2, y: (bounds.height - h) / 2, width: w, height: h)
     }
 
+    /// Map a point in this view back to an x in tank space. The rendered frame
+    /// starts `bleedArt` pixels before the camera window, so subtract it.
     private func artX(for pointX: CGFloat) -> Double {
         let rect = imageRect
         guard rect.width > 0 else { return 0 }
-        return Double(controller.cameraOffset) + Double((pointX - rect.minX) / scale)
+        return Double(controller.cameraOffset)
+            + Double((pointX - rect.minX) / scale)
+            - Double(bleedArt)
     }
 
     // MARK: - Drawing
@@ -80,7 +104,10 @@ final class TankView: NSView {
         if artFrame.width != vw || artFrame.height != controller.sim.config.height {
             artFrame = Frame(width: vw, height: controller.sim.config.height)
         }
-        Aquarium.render(controller.sim, into: &artFrame, cameraX: controller.cameraOffset)
+        // Start the frame `bleedArt` before the camera window so the rounded
+        // corners get covered by real tank rather than a black gap.
+        Aquarium.render(controller.sim, into: &artFrame,
+                        startX: controller.cameraOffset - bleedArt)
         guard let img = TankView.makeCGImage(artFrame) else { return }
         ctx.draw(img, in: imageRect)
     }
