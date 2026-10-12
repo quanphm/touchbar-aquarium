@@ -175,8 +175,8 @@ final class TankView: NSView {
 }
 
 /// Records the sizes each tank view is laid out at, so the real Touch Bar
-/// principal-area width can be read back without a screenshot.
-enum LayoutLog {
+    /// principal-area width can be read back without a screenshot.
+    enum LayoutLog {
     private static var last: [String: String] = [:]
 
     static func record(_ tag: String, _ size: NSSize) {
