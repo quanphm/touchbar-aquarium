@@ -8,28 +8,15 @@ public enum Aquarium {
     }
 
     /// Render a window `frame.width` wide of a (possibly wider) tank, scrolled to
-    /// `cameraX` art pixels, keeping the window on the tank.
+    /// `cameraX` art pixels. Lets a long tank pan through a narrow view.
     public static func render(_ sim: AquariumSim, into frame: inout Frame, cameraX: Int) {
-        let maxX = max(0, sim.config.width - frame.width)
-        render(sim, into: &frame, startX: max(0, min(maxX, cameraX)))
-    }
-
-    /// Render `frame` starting at tank x `startX`, which may be negative or past
-    /// the tank's right edge: columns outside the tank replicate the edge
-    /// column rather than coming back black.
-    ///
-    /// This is how the Touch Bar bleeds tank under its rounded corners. It
-    /// deliberately does *not* clamp where the frame sits, because the caller
-    /// owns that — clamping here would fight the camera and hide the last few
-    /// pixels of the tank at full right-scroll.
-    public static func render(_ sim: AquariumSim, into frame: inout Frame, startX: Int) {
         var full = Frame(width: sim.config.width, height: sim.config.height)
         renderFull(sim, into: &full)
-        let lastCol = full.width - 1
+        let maxX = max(0, sim.config.width - frame.width)
+        let cx = max(0, min(maxX, cameraX))
         for y in 0..<frame.height {
             for x in 0..<frame.width {
-                let sx = min(lastCol, max(0, x + startX))
-                frame.set(x, y, full.get(sx, y))
+                frame.set(x, y, full.get(x + cx, y))
             }
         }
     }

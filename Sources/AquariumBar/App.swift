@@ -157,7 +157,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Seconds since the last HID input anywhere on the system.
     private static var secondsSinceInput: Double {
         CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: anyInputEvent)
-            ?? .greatestFiniteMagnitude
     }
 
     /// The Touch Bar goes dark when you stop using the Mac, and nothing in the
