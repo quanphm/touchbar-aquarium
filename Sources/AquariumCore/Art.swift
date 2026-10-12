@@ -497,10 +497,10 @@ loee.ool
 ..ll..ll
 """
 
-    public static let crabShell = RGBA(hex: 0x5A8FC0)
-    public static let crabShellHi = RGBA(hex: 0x8FC0E8)
-    public static let crabLeg = RGBA(hex: 0x35597E)
-    public static let crabEye = RGBA(hex: 0x0E1620)
+    public static let crabShell = RGBA(hex: 0xC4432A)
+    public static let crabShellHi = RGBA(hex: 0xE8795C)
+    public static let crabLeg = RGBA(hex: 0x8A2A18)
+    public static let crabEye = RGBA(hex: 0x1A0C08)
 
     private static var critterCache: [Int: PixelSprite] = [:]
 
