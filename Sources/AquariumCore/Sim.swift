@@ -24,7 +24,7 @@ public struct TankConfig {
 
     /// Day/night cycle. `dayLength` is real seconds per full 24h cycle.
     public var dayNightEnabled: Bool = true
-    public var dayLength: Double = 600
+    public var dayLength: Double = 1200
     public var startHour: Double = 9
     /// When true, the clock follows real time instead of the fast `dayLength` cycle.
     public var realClock: Bool = false
@@ -316,7 +316,8 @@ public struct AquariumSim {
 
     private mutating func scatterFish() {
         // The headline cast, then fill the remaining slots with random
-        // schoolers so the "3 other fishes" vary from tank to tank.
+        // schoolers so the "other fishes" vary from tank to tank.
+        //
         var roster: [Int] = [9, 8, 10, 10]   // clownfish, pufferfish, two jellyfish
         var pool = Art.schoolerPool
         for _ in 0..<max(0, config.fishCount - roster.count) {
@@ -517,8 +518,8 @@ public struct AquariumSim {
             py = -py
             if !fitsVertically() { headOn = 0 }
         }
-        var nx = ux + (px - ux) * headOn
-        var ny = uy + (py - uy) * headOn
+        let nx = ux + (px - ux) * headOn
+        let ny = uy + (py - uy) * headOn
         let nl = (nx * nx + ny * ny).squareRoot()
         guard nl > 0.0001 else { return (ux, uy) }
         return (nx / nl, ny / nl)

@@ -287,7 +287,7 @@ public enum Aquarium {
 
             drawFishSprite(&frame, sprite: sprite, x: px, y: py, flip: flip,
                            tailCols: tailCols, phase: f.phase, burst: f.burst,
-                           depth: depth, palette: palette, shape: style.shape,
+                           depth: depth, palette: palette,
                            fin: fin, highlight: highlight, accent: accent)
         }
     }
@@ -296,12 +296,11 @@ public enum Aquarium {
     /// body, the back catches a rim light, and the fin tips take the accent.
     private static func drawFishSprite(_ frame: inout Frame, sprite: PixelSprite, x: Int, y: Int,
                                        flip: Bool, tailCols: Int, phase: Double, burst: Double,
-                                       depth: Double, palette: Palette, shape: FishShape,
+                                       depth: Double, palette: Palette,
                                        fin: RGBA, highlight: RGBA, accent: RGBA) {
         // The tail flaps as a unit (never tearing from the body); the tip moves
         // a little further during a dart burst.
         let swish = sin(phase * 1.9) * (0.9 + (burst > 0.05 ? 0.5 : 0))
-        let undulate = Art.undulation(for: shape)
         let tint = (1 - depth) * 0.26
 
         // Topmost opaque pixel per column, for the back's rim light.
@@ -319,17 +318,9 @@ public enum Aquarium {
 
                 let sx = flip ? (sprite.width - 1 - col) : col
 
-                // A wave runs down the body, anchored at the head and growing
-                // toward the tail — which is what an eel actually does, and
-                // the opposite of every other fish's rigid tail flap. Computed
-                // from the *screen* column so it stays anchored to the head
-                // whichever way the sprite is facing.
+                // Shift the whole tail together so it never tears off the body.
                 var dx = 0
-                if undulate > 0 {
-                    let t = Double(sx) / Double(max(1, sprite.width - 1))
-                    dx = Int((sin(phase * 2.1 - Double(sx) * 0.55) * undulate * (0.15 + 0.85 * t)).rounded())
-                } else if tailCols >= 2 && col < tailCols {
-                    // Shift the whole tail together so it never tears off the body.
+                if tailCols >= 2 && col < tailCols {
                     dx = Int(swish.rounded())
                 }
                 if c == fin { c = c.mixed(with: accent, 0.35) }

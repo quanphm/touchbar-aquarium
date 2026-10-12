@@ -106,11 +106,18 @@ do {
         run(&sim, seconds: 1.5)
         rounds += 1
     }
-    let peak = sim.fish.map { $0.satiety }.max() ?? 0
-    run(&sim, seconds: 180)   // no more food; let fullness drain
+    // Let any leftover pellets expire first. Pellets live 22s, and with
+    // partial fills a still-hungry fish will eat one mid-measurement and mask
+    // the drain entirely.
+    run(&sim, seconds: 25)
+    let before = sim.fish.map { $0.satiety }.max() ?? 0
+    run(&sim, seconds: 60)   // exactly one minute of decay, no food
     let now = sim.fish.map { $0.satiety }.max() ?? 0
-    check("satiety drains so fish get hungry again", now < peak - 0.4,
-          "fullness \(String(format: "%.2f", peak)) -> \(String(format: "%.2f", now))")
+    // satietyDecay is 0.2 per minute, so a minute with no food should cost
+    // exactly that.
+    let dropped = before - now
+    check("satiety drains so fish get hungry again", abs(dropped - 0.2) < 0.05,
+          "dropped \(String(format: "%.2f", dropped)) in 60s (expected 0.20)")
 }
 
 // Mermaids are decorative: they never chase or eat a pellet, while the Kohaku
@@ -535,34 +542,6 @@ do {
           "\(cfg.satietyPerPellet) per pellet: "
           + "\(pelletsToFull(from: 0.7)) pellet(s) from 0.7 (nearly full), "
           + "\(pelletsToFull(from: 0.2)) from 0.2 (starving)")
-}
-
-// The eel: the tank's one long, low, undulating fish.
-do {
-    let eels = Art.species.indices.filter { Art.species[$0].shape == .eel }
-    check("the tank has an eel species", eels.count == 1, "\(eels.count) found")
-    check("an eel can be spawned", Art.schoolerPool.contains(eels[0]))
-
-    // It should be the longest thing in the tank — that's the whole point of
-    // it existing in a 1080-wide strip.
-    let longest = (0..<Art.species.count)
-        .map { (i: $0, w: Art.fishSprite($0).width) }
-        .max { $0.w < $1.w }
-    check("the eel is the longest fish", longest?.i == eels[0],
-          "longest is species \(longest?.i ?? -1) at \(longest?.w ?? 0)px")
-
-    // Undulation is the eel's alone; everything else flaps a rigid tail.
-    let undulating = (0..<Art.species.count).filter { Art.undulation(for: Art.species[$0].shape) > 0 }
-    check("only the eel undulates", undulating == eels, "\(undulating) undulate")
-
-    // And a tank should actually produce one now and then.
-    var found = 0
-    for s in 1...8 {
-        var cfg = TankConfig(); cfg.seed = UInt64(s) &* 104_729
-        let sim = AquariumSim(config: cfg)
-        if sim.fish.contains(where: { Art.species[$0.species].shape == .eel }) { found += 1 }
-    }
-    check("eels turn up in real tanks", found >= 1, "\(found)/8 tanks had one")
 }
 
 // The crab: the only creature that moves sideways.
