@@ -544,6 +544,24 @@ do {
           + "\(pelletsToFull(from: 0.2)) from 0.2 (starving)")
 }
 
+// Legendaries carry a placeholder `species`; their real identity is
+// `legendaryKind`. The placeholder must be inert, so that no shape-keyed
+// behaviour can leak onto a legendary even if an isLegendary guard goes
+// missing. Species 0 is the neon tetra, whose `.standard` shape makes it a
+// schooler — that is how fish once piled onto the Kohaku koi.
+do {
+    let sim = AquariumSim()
+    let legendaries = sim.fish.filter(\.isLegendary)
+    check("the tank has legendary residents", legendaries.count == 3, "\(legendaries.count) found")
+
+    let placeholder = Art.species[legendaries[0].species].shape
+    let leaky = [Art.schools(legendaries[0].species), placeholder == .jelly, placeholder == .puffer]
+    check("the legendary placeholder species is inert",
+          !leaky[0] && !leaky[1] && !leaky[2],
+          "placeholder species \(legendaries[0].species) is shape \(placeholder)"
+          + (leaky[0] ? " — it SCHOOLS" : ""))
+}
+
 // The crab: the only creature that moves sideways.
 do {
     var sim = AquariumSim()

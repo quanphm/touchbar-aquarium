@@ -409,7 +409,15 @@ public struct AquariumSim {
             fish.append(Fish(
                 x: x, y: homeY,
                 vx: 2, vy: 0,
-                species: 0,
+                // Placeholder only: a legendary's real identity is
+                // `legendaryKind`, and it branches on `isLegendary` before
+                // consulting species. This one is chosen to be *inert* — the
+                // angelfish is not a schooler, a jelly, or a puffer, so no
+                // shape-keyed behaviour can leak onto a legendary even if a
+                // guard goes missing. Index 0 (neon tetra) is `.standard`,
+                // which IS a schooler, and that is how the Kohaku koi ended
+                // up with tetras shoaling onto it and piling into a jam.
+                species: 7,
                 facing: 1,
                 phase: rng.range(0, 6.28),
                 speed: speed,
