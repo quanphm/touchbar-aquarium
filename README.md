@@ -16,6 +16,8 @@ coral, sand castles, and layered reef silhouettes**, **dappled caustic light**, 
 plant bed, light rays, drifting **bioluminescent plankton**, and bubbling
 columns. Corals and plankton **glow**, brightest after dark.
 
+![Sprite lineup](out/sprites.png)
+
 **The cast:** a striped **clownfish**, a round **pufferfish**, **two jellyfish**,
 **three random schoolers** (from neon tetra, guppy, danio, platy, rasbora,
 cherry barb, cory, angelfish, **betta**, **goldfish**), and **three legendary
@@ -26,8 +28,6 @@ Also in the tank: a **day/night cycle** on a 20-minute clock (fish are lively
 by day and languid by night, and the water dims), **species personalities**
 (guppies and danios dart in bursts; the puffer inflates when startled), and
 switchable **themes** (Freshwater / Deep Sea).
-
-## The legendary residents
 
 Every tank includes **three legendary residents**, wreathed in a soft glow and
 trailing sparkles, gliding freely and grander than the rest: a red-and-white
@@ -93,8 +93,4 @@ before capture, `--scale` integer upscale, `--fps N` playback rate for GIFs,
 `--theme freshwater|deepsea`, `--hour H` pin the time of day, `--seed N` pin
 the world, `--legendary` force a legendary resident, and `--sprites` to render
 the cast as a lineup instead of a tank.
-
-Every sprite in the game, in one strip:
-
-![Sprite lineup](out/sprites.png)
 
