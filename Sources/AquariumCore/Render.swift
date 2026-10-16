@@ -269,7 +269,7 @@ public enum Aquarium {
             let near = max(0, min(1, (f.homeY - minY) / span))
             let depth = 1 - near
 
-            let fin: RGBA, highlight: RGBA, accent: RGBA
+            let fin: RGBA, highlight: RGBA, accent: RGBA, outline: RGBA, eyeHi: RGBA
             let tailCols: Int
             if f.isLegendary {
                 let kinds = Art.legendaryKinds
@@ -277,18 +277,23 @@ public enum Aquarium {
                 fin = k.fin
                 highlight = k.glow.mixed(with: RGBA(hex: 0xFFFFFF), 0.30)
                 accent = k.patch
+                outline = k.body.mixed(with: RGBA(hex: 0x1A1410), 0.55)
+                eyeHi = RGBA(hex: 0xFFFFFF)
                 tailCols = k.shape == .mermaid ? 0 : 2
             } else {
                 fin = style.fin
                 highlight = style.highlight
                 accent = style.accent
+                outline = style.outline
+                eyeHi = style.eyeHi
                 tailCols = f.baby ? 2 : Art.tailColumns(for: style.shape)
             }
 
             drawFishSprite(&frame, sprite: sprite, x: px, y: py, flip: flip,
                            tailCols: tailCols, phase: f.phase, burst: f.burst,
                            depth: depth, palette: palette,
-                           fin: fin, highlight: highlight, accent: accent)
+                           fin: fin, highlight: highlight, accent: accent,
+                           outline: outline, eyeHi: eyeHi)
         }
     }
 
@@ -297,18 +302,23 @@ public enum Aquarium {
     private static func drawFishSprite(_ frame: inout Frame, sprite: PixelSprite, x: Int, y: Int,
                                        flip: Bool, tailCols: Int, phase: Double, burst: Double,
                                        depth: Double, palette: Palette,
-                                       fin: RGBA, highlight: RGBA, accent: RGBA) {
+                                       fin: RGBA, highlight: RGBA, accent: RGBA,
+                                       outline: RGBA, eyeHi: RGBA) {
         // The tail flaps as a unit (never tearing from the body); the tip moves
         // a little further during a dart burst.
         let swish = sin(phase * 1.9) * (0.9 + (burst > 0.05 ? 0.5 : 0))
         let tint = (1 - depth) * 0.26
 
-        // Topmost opaque pixel per column, for the back's rim light.
+        // Topmost *body* pixel per column, for the back's rim light. The outline
+        // and the eye glint are skipped so the rim light lands on the body and
+        // the glint stays crisp.
         var topRow = [Int](repeating: -1, count: sprite.width)
         for col in 0..<sprite.width {
-            for row in 0..<sprite.height where sprite.pixels[row * sprite.width + col] != nil {
-                topRow[col] = row
-                break
+            for row in 0..<sprite.height {
+                if let c = sprite.pixels[row * sprite.width + col], c != outline, c != eyeHi {
+                    topRow[col] = row
+                    break
+                }
             }
         }
 

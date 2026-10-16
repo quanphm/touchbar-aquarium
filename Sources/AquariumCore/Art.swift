@@ -27,8 +27,17 @@ public struct FishStyle {
     public let speedScale: Double
     /// Tendency to make quick darting bursts (0 calm .. 1 flitty).
     public let darts: Double
-    /// Extra stripe color (clownfish bands). Defaults to the belly.
+    /// Light pattern colour: clownfish bands, racing stripes, the neon tetra's
+    /// electric lateral stripe. Defaults to the belly.
     public let stripe: RGBA
+    /// Dark pattern colour: lateral lines, spots, shoulder marks, a catfish's
+    /// speckles. Defaults to a deep shade of the body.
+    public let pattern: RGBA
+    /// The glint beside the eye. Defaults to near-white.
+    public let eyeHi: RGBA
+    /// The 1px edge that makes a fish read against water and sand. Defaults to
+    /// a deep shade of the body.
+    public let outline: RGBA
     /// Soft aura color (jellyfish). Defaults to nil.
     public let glow: RGBA?
     /// Rim-light sheen along the fish's back. Defaults to a lightened body.
@@ -38,8 +47,8 @@ public struct FishStyle {
 
     public init(_ name: String, shape: FishShape, body: RGBA, belly: RGBA, fin: RGBA, eye: RGBA,
                 depth: Double, speedScale: Double = 1.0, darts: Double = 0.15,
-                stripe: RGBA? = nil, glow: RGBA? = nil,
-                highlight: RGBA? = nil, accent: RGBA? = nil) {
+                stripe: RGBA? = nil, pattern: RGBA? = nil, eyeHi: RGBA? = nil, accent: RGBA? = nil,
+                outline: RGBA? = nil, glow: RGBA? = nil, highlight: RGBA? = nil) {
         self.name = name
         self.shape = shape
         self.body = body
@@ -50,6 +59,9 @@ public struct FishStyle {
         self.speedScale = speedScale
         self.darts = darts
         self.stripe = stripe ?? belly
+        self.pattern = pattern ?? body.mixed(with: RGBA(hex: 0x0A1020), 0.55)
+        self.eyeHi = eyeHi ?? RGBA(hex: 0xFFFFFF)
+        self.outline = outline ?? body.mixed(with: RGBA(hex: 0x0A1020), 0.62)
         self.glow = glow
         self.highlight = highlight ?? body.mixed(with: RGBA(hex: 0xFFFFFF), 0.38)
         self.accent = accent ?? fin.mixed(with: RGBA(hex: 0xFFFFFF), 0.30)
@@ -181,19 +193,78 @@ public enum Art {
     // MARK: - Species
 
     public static let species: [FishStyle] = [
-        FishStyle("neon", shape: .standard, body: RGBA(hex: 0x37A6E8), belly: RGBA(hex: 0xC9D6E2), fin: RGBA(hex: 0xE8503A), eye: RGBA(hex: 0x0C1016), depth: 0.35, speedScale: 1.15, darts: 0.35),
-        FishStyle("guppy", shape: .guppy, body: RGBA(hex: 0xF2A03C), belly: RGBA(hex: 0xFFD9A0), fin: RGBA(hex: 0xE86A2E), eye: RGBA(hex: 0x1C1208), depth: 0.30, speedScale: 0.95, darts: 0.6),
-        FishStyle("danio", shape: .standard, body: RGBA(hex: 0x45C4B0), belly: RGBA(hex: 0xD3F3EE), fin: RGBA(hex: 0x2E9285), eye: RGBA(hex: 0x0B1A17), depth: 0.18, speedScale: 1.25, darts: 0.5),
-        FishStyle("platy", shape: .standard, body: RGBA(hex: 0xD25577), belly: RGBA(hex: 0xF3C3CF), fin: RGBA(hex: 0x97284A), eye: RGBA(hex: 0x1A0C12), depth: 0.45, speedScale: 0.90, darts: 0.2),
-        FishStyle("rasbora", shape: .standard, body: RGBA(hex: 0xE3C24A), belly: RGBA(hex: 0xF7E9AE), fin: RGBA(hex: 0xC08E22), eye: RGBA(hex: 0x1A1408), depth: 0.40, speedScale: 1.05, darts: 0.3),
-        FishStyle("cherry barb", shape: .standard, body: RGBA(hex: 0xD6452E), belly: RGBA(hex: 0xF0B0A0), fin: RGBA(hex: 0x8E2318), eye: RGBA(hex: 0x1A0A08), depth: 0.35, speedScale: 1.10, darts: 0.35),
-        FishStyle("cory", shape: .loach, body: RGBA(hex: 0xA08C72), belly: RGBA(hex: 0xDCCFB8), fin: RGBA(hex: 0x6F6050), eye: RGBA(hex: 0x120E08), depth: 0.85, speedScale: 0.70, darts: 0.1),
-        FishStyle("angelfish", shape: .angel, body: RGBA(hex: 0xC9CBD6), belly: RGBA(hex: 0xF2F3F7), fin: RGBA(hex: 0x2E3038), eye: RGBA(hex: 0x0A0C10), depth: 0.45, speedScale: 0.65, darts: 0.05),
-        FishStyle("puffer", shape: .puffer, body: RGBA(hex: 0x9BC53D), belly: RGBA(hex: 0xE6F0B0), fin: RGBA(hex: 0x6F8F2A), eye: RGBA(hex: 0x181A0A), depth: 0.58, speedScale: 0.60, darts: 0.1),
-        FishStyle("clownfish", shape: .clown, body: RGBA(hex: 0xF08A2A), belly: RGBA(hex: 0xFFD9A8), fin: RGBA(hex: 0xE06A1E), eye: RGBA(hex: 0x1A1008), depth: 0.42, speedScale: 0.9, darts: 0.25, stripe: RGBA(hex: 0xFFF4F0)),
-        FishStyle("jellyfish", shape: .jelly, body: RGBA(hex: 0xB8A6F0), belly: RGBA(hex: 0xEDE6FF), fin: RGBA(hex: 0x8E7AD0), eye: RGBA(hex: 0x201830), depth: 0.5, speedScale: 0.5, darts: 0.0, glow: RGBA(hex: 0xC7B4FF)),
-        FishStyle("betta", shape: .betta, body: RGBA(hex: 0x5B3FC0), belly: RGBA(hex: 0xC9BCF0), fin: RGBA(hex: 0xE23B6D), eye: RGBA(hex: 0x120C18), depth: 0.38, speedScale: 0.75, darts: 0.12),
-        FishStyle("goldfish", shape: .goldfish, body: RGBA(hex: 0xF5B301), belly: RGBA(hex: 0xFFE7A0), fin: RGBA(hex: 0xE08A00), eye: RGBA(hex: 0x1A1206), depth: 0.52, speedScale: 0.7, darts: 0.1),
+        // Neon tetra: silver-blue with its signature electric lateral stripe and
+        // a red lower-rear flare.
+        FishStyle("neon", shape: .standard,
+                  body: RGBA(hex: 0x3AA6E8), belly: RGBA(hex: 0xD6E4F0), fin: RGBA(hex: 0xE8503A), eye: RGBA(hex: 0x0C1016),
+                  depth: 0.35, speedScale: 1.15, darts: 0.35,
+                  stripe: RGBA(hex: 0x7FE4FF), pattern: RGBA(hex: 0x1E5FA8), outline: RGBA(hex: 0x0E2A55)),
+        // Guppy: slim body behind a big flowing fan tail with a colour spot.
+        FishStyle("guppy", shape: .guppy,
+                  body: RGBA(hex: 0xF2A03C), belly: RGBA(hex: 0xFFD9A0), fin: RGBA(hex: 0xE86A2E), eye: RGBA(hex: 0x1C1208),
+                  depth: 0.30, speedScale: 0.95, darts: 0.6,
+                  stripe: RGBA(hex: 0xFFCB6A), pattern: RGBA(hex: 0x9B4B12),
+                  accent: RGBA(hex: 0xFFD15C), outline: RGBA(hex: 0x5A2A0A)),
+        // Zebra danio: torpedo body with twin pale racing stripes.
+        FishStyle("danio", shape: .standard,
+                  body: RGBA(hex: 0x5FC9B6), belly: RGBA(hex: 0xE0F6F1), fin: RGBA(hex: 0x2E9285), eye: RGBA(hex: 0x0B1A17),
+                  depth: 0.18, speedScale: 1.25, darts: 0.5,
+                  stripe: RGBA(hex: 0xF2FBE9), pattern: RGBA(hex: 0x1E6F63), outline: RGBA(hex: 0x0C3B34)),
+        // Platy: deeper body, dark tail-base, a shoulder spot.
+        FishStyle("platy", shape: .standard,
+                  body: RGBA(hex: 0xD25577), belly: RGBA(hex: 0xF6C9D5), fin: RGBA(hex: 0x97284A), eye: RGBA(hex: 0x1A0C12),
+                  depth: 0.45, speedScale: 0.90, darts: 0.2,
+                  stripe: RGBA(hex: 0xF6C9D5), pattern: RGBA(hex: 0x511126), outline: RGBA(hex: 0x40061A)),
+        // Harlequin rasbora: gold with a dark lateral line.
+        FishStyle("rasbora", shape: .standard,
+                  body: RGBA(hex: 0xE3C24A), belly: RGBA(hex: 0xF9EFC0), fin: RGBA(hex: 0xC08E22), eye: RGBA(hex: 0x1A1408),
+                  depth: 0.40, speedScale: 1.05, darts: 0.3,
+                  stripe: RGBA(hex: 0xFBEFB4), pattern: RGBA(hex: 0x3A2C0C), outline: RGBA(hex: 0x2A2008)),
+        // Cherry barb: deep red, darker back, a black shoulder spot.
+        FishStyle("cherry barb", shape: .standard,
+                  body: RGBA(hex: 0xD8452E), belly: RGBA(hex: 0xF2B6A6), fin: RGBA(hex: 0x8E2318), eye: RGBA(hex: 0x1A0A08),
+                  depth: 0.35, speedScale: 1.10, darts: 0.35,
+                  stripe: RGBA(hex: 0xF0A090), pattern: RGBA(hex: 0x2A0806), outline: RGBA(hex: 0x3A0806)),
+        // Cory catfish: long, low, speckled, with whisker barbels.
+        FishStyle("cory", shape: .loach,
+                  body: RGBA(hex: 0xA88F6E), belly: RGBA(hex: 0xE6DAC2), fin: RGBA(hex: 0x6F6050), eye: RGBA(hex: 0x120E08),
+                  depth: 0.85, speedScale: 0.70, darts: 0.1,
+                  stripe: RGBA(hex: 0xCBB794), pattern: RGBA(hex: 0x4A3C28),
+                  eyeHi: RGBA(hex: 0xF6EEDA), outline: RGBA(hex: 0x2E2416)),
+        // Angelfish: tall diamond, vertical dark bars, amber fin tips.
+        FishStyle("angelfish", shape: .angel,
+                  body: RGBA(hex: 0xD3D5DF), belly: RGBA(hex: 0xF4F5F9), fin: RGBA(hex: 0x2E3038), eye: RGBA(hex: 0x0A0C10),
+                  depth: 0.45, speedScale: 0.65, darts: 0.05,
+                  stripe: RGBA(hex: 0xF4F5F9), pattern: RGBA(hex: 0x3E424E),
+                  accent: RGBA(hex: 0xF2C84A), outline: RGBA(hex: 0x14161C)),
+        // Puffer: round and spotted; the puffed pose is its own art.
+        FishStyle("puffer", shape: .puffer,
+                  body: RGBA(hex: 0x9BC53D), belly: RGBA(hex: 0xEDF5C0), fin: RGBA(hex: 0x6F8F2A), eye: RGBA(hex: 0x181A0A),
+                  depth: 0.58, speedScale: 0.60, darts: 0.1,
+                  stripe: RGBA(hex: 0xEDF5C0), pattern: RGBA(hex: 0x4E6A16), outline: RGBA(hex: 0x2E3D0C)),
+        // Clownfish: orange with three white bands edged in dark.
+        FishStyle("clownfish", shape: .clown,
+                  body: RGBA(hex: 0xF48120), belly: RGBA(hex: 0xFFD9A8), fin: RGBA(hex: 0xE06A1E), eye: RGBA(hex: 0x1A1008),
+                  depth: 0.42, speedScale: 0.9, darts: 0.25,
+                  stripe: RGBA(hex: 0xFFFBF5), pattern: RGBA(hex: 0x2A1408), outline: RGBA(hex: 0x5A2404)),
+        // Jellyfish: lavender bell with ribs and tip-tinted tentacles.
+        FishStyle("jellyfish", shape: .jelly,
+                  body: RGBA(hex: 0xBFAEEF), belly: RGBA(hex: 0xF1EBFF), fin: RGBA(hex: 0x8E7AD0), eye: RGBA(hex: 0x201830),
+                  depth: 0.5, speedScale: 0.5, darts: 0.0,
+                  stripe: RGBA(hex: 0xE7DEFF), pattern: RGBA(hex: 0x6A55B8), outline: RGBA(hex: 0x3A2C66),
+                  glow: RGBA(hex: 0xC7B4FF)),
+        // Betta: indigo body under a split rose veil fin.
+        FishStyle("betta", shape: .betta,
+                  body: RGBA(hex: 0x5B3FC0), belly: RGBA(hex: 0xCFC2F2), fin: RGBA(hex: 0xE23B6D), eye: RGBA(hex: 0x120C18),
+                  depth: 0.38, speedScale: 0.75, darts: 0.12,
+                  stripe: RGBA(hex: 0x8F76E8), pattern: RGBA(hex: 0x241452),
+                  accent: RGBA(hex: 0xFF8FB0), outline: RGBA(hex: 0x1A0C38)),
+        // Goldfish: round gold body, a wen, and a flowing split tail.
+        FishStyle("goldfish", shape: .goldfish,
+                  body: RGBA(hex: 0xF5B301), belly: RGBA(hex: 0xFFE9A6), fin: RGBA(hex: 0xE08A00), eye: RGBA(hex: 0x1A1206),
+                  depth: 0.52, speedScale: 0.7, darts: 0.1,
+                  stripe: RGBA(hex: 0xFFF0BE), pattern: RGBA(hex: 0xB06A00),
+                  accent: RGBA(hex: 0xFF6A3A), outline: RGBA(hex: 0x6A3D00)),
         ]
 
     /// Species pool for the "other fishes" slots (everything but the
@@ -201,6 +272,24 @@ public enum Art {
     public static let schoolerPool: [Int] = [0, 1, 2, 3, 4, 5, 6, 7, 11, 12]
 
     private static var spriteCache: [Int: PixelSprite] = [:]
+
+    /// The character palette every fish sprite is coloured from. Kept in one
+    /// place so the art can use any layer: o body, b belly, f fin, e eye,
+    /// h eye glint, l outline, w light pattern, k dark pattern, a accent.
+    private static func fishPalette(_ style: FishStyle) -> [Character: RGBA] {
+        [
+            "o": style.body,
+            "b": style.belly,
+            "f": style.fin,
+            "e": style.eye,
+            "h": style.eyeHi,
+            "l": style.outline,
+            "w": style.stripe,
+            "k": style.pattern,
+            "a": style.accent,
+            "t": style.fin,
+        ]
+    }
 
     /// Sprite for a species index (cheaply cached — built once per species).
     /// `puffed` swaps in the inflated puffer pose.
@@ -210,15 +299,8 @@ public enum Art {
         let usePuffed = puffed && style.shape == .puffer
         let key = i * 2 + (usePuffed ? 1 : 0)
         if let cached = spriteCache[key] { return cached }
-        let art = usePuffed ? pufferPuffedArt : shapeArt(style.shape)
-        let sprite = PixelSprite(art: art, [
-            "o": style.body,
-            "b": style.belly,
-            "f": style.fin,
-            "e": style.eye,
-            "w": style.stripe,
-            "t": style.fin,
-        ])
+        let art = usePuffed ? pufferPuffedArt : (speciesArt(i) ?? shapeArt(style.shape))
+        let sprite = PixelSprite(art: art, fishPalette(style))
         spriteCache[key] = sprite
         return sprite
     }
@@ -248,11 +330,12 @@ public enum Art {
         }
     }
 
-    // A baby fish (fry): its species' palette, but small. 5x3.
+    // A baby fish (fry): its species' palette, but small — same layering as the
+    // adults (outline, glint) so it reads as the same world. 5x3.
     static let fryShape = """
-.ooo.
-ffooe
-.bbb.
+.loo.
+flohe
+.lbb.
 """
 
     private static var fryCache: [Int: PixelSprite] = [:]
@@ -262,7 +345,7 @@ ffooe
         let i = normalized(index)
         if let cached = fryCache[i] { return cached }
         let s = species[i]
-        let sprite = PixelSprite(art: fryShape, ["o": s.body, "b": s.belly, "f": s.fin, "e": s.eye])
+        let sprite = PixelSprite(art: fryShape, fishPalette(s))
         fryCache[i] = sprite
         return sprite
     }
@@ -289,6 +372,7 @@ ffooe
         case .koi:
             return PixelSprite(art: legendaryArt, [
                 "o": k.body, "b": k.belly, "p": k.patch, "f": k.fin, "e": k.eye,
+                "h": RGBA(hex: 0xFFFFFF), "l": k.body.mixed(with: RGBA(hex: 0x1A1410), 0.55),
             ])
         case .mermaid:
             return mermaidSprite(k)
@@ -300,15 +384,15 @@ ffooe
     }
 
     // A koi, 18x6, facing right — elongated body, flowing tail, dorsal fin,
-    // barbels, and multiple red patches (mottled, koi-style).
-    // Chars: o body, b belly, p patch, f fin/tail, e eye, . transparent.
+    // barbels, mottled red patches, and a 1px outline. Chars: o body, b belly,
+    // p patch, f fin/tail, e eye, h glint, l outline, . transparent.
     static let legendaryArt = """
 ........ffff......
-...foooppoooppoo..
-.ff.oppoopppooooeo
-.ff.bbppbbppbbbb..
-...fbbbbbbbbbbff..
-......bbbbbb......
+...looooppoopppool
+..ffooppppooppheol
+..ffoobppbbppbbbbl
+...lbbbbbbbbbbbbl.
+......lbbbbbbl....
 """
 
     // A mermaid, 8x7: a rounded head of rainbow hair, a face with dark eyes, a
@@ -361,74 +445,182 @@ ttTttTt.
         ((index % species.count) + species.count) % species.count
     }
 
-    // Art written flush-left so indentation is not baked in.
-    // Chars: o = body, b = belly, f = fin/tail, e = eye, . = transparent.
+    // Art written flush-left so indentation is not baked in, so no leading
+    // indentation is baked into the sprite.
+    // Chars: o = body, b = belly, f = fin/tail, e = eye, h = eye glint,
+    //        l = outline, w = light pattern, k = dark pattern, a = accent.
+
+    /// A species' own body art where its identity needs more than a recoloured
+    /// shared shape. Falls back to `shapeArt` for anything not listed.
+    private static func speciesArt(_ index: Int) -> String? {
+        switch index {
+        case 0:   // neon tetra: slim, electric lateral stripe, red lower-rear
+            return """
+            .looooool
+            flwwwwoeh
+            .fffooool
+            ..lbbbbbl
+            """
+        case 1:   // guppy: big fan tail with an eye-spot, slim body
+            return """
+            .ffa..ooooo
+            ffffa.oooeh
+            .ffa..ooooo
+            ..ffa.bbbbb
+            """
+        case 2:   // danio: torpedo with twin pale racing stripes
+            return """
+            .looooohl
+            lwwowweo.
+            .bbbbbbbl
+            """
+        case 3:   // platy: deep body, dark tail-base, one shoulder spot
+            return """
+            .looooool
+            looooooeh
+            lokooool.
+            .bbbbbbbl
+            """
+        case 4:   // rasbora: gold, dark lateral line
+            return """
+            .looooohl
+            lkkkkkkeo
+            .lbbbbbbl
+            """
+        case 5:   // cherry barb: deep red, dark back, black shoulder spot
+            return """
+            .lkkkkkkl
+            looooooeh
+            lkoooool.
+            .bbbbbbbl
+            """
+        case 6:   // cory: long, low, speckled, whisker barbels
+            return """
+            .looooooe.
+            lkoookook.
+            .llbbbbll.
+            """
+        case 7:   // angelfish: tall diamond, vertical bars, amber fin tips
+            return """
+            ..aooo..
+            .lkoool.
+            lkoooeho
+            .lkoool.
+            ..abbb..
+            """
+        case 8:   // puffer: round and spotted
+            return """
+            ..koo..
+            .ooook.
+            kooehok
+            .ooook.
+            ..bbb..
+            """
+        case 9:   // clownfish: three white bands edged in dark
+            return """
+            .lowoowool
+            flwoowooeh
+            .lbwbbwbbl
+            """
+        case 10:  // jellyfish: ribbed bell, tip-tinted tentacles
+            return """
+            ..bbbb..
+            .boooob.
+            bokookob
+            .oooooo.
+            ..t..t..
+            ..a..a..
+            """
+        case 11:  // betta: split rose veil fin, iridescent body
+            return """
+            .f..ooooo..
+            ff.ooooooo.
+            ffaooooeo..
+            ff.ooooooo.
+            .f..bbbbb..
+            """
+        case 12:  // goldfish: round gold body, wen, split flowing tail
+            return """
+            ..ooooo...
+            ffoooooh..
+            ffooooeho.
+            .ffoooooo.
+            ..bbbbb...
+            """
+        default:
+            return nil
+        }
+    }
+
+    /// Fallback body plan for a shape (also the generic look when a species has
+    /// no art of its own).
     private static func shapeArt(_ shape: FishShape) -> String {
         switch shape {
         case .standard:
             return """
-            f.ooooo..
-            ffooooeoo
-            f.bbbbb..
+            .looooool
+            flooooeoh
+            ..lbbbbbl
             """
         case .guppy:
             return """
-            ff..ooooo..
-            fff.oooooeo
-            ff..bbbbbb.
-            f...oooo...
+            .ffa..ooooo
+            ffffa.oooeh
+            .ffa..ooooo
+            ..ffa.bbbbb
             """
         case .angel:
             return """
-            f..ooo..
-            f.ooooo.
-            ffoooeoo
-            f.ooooo.
-            f..bbb..
+            ..aooo..
+            .lkoool.
+            lkoooeho
+            .lkoool.
+            ..abbb..
             """
         case .loach:
             return """
-            f.oooooeoo
-            ffbbbbbbbb
+            .looooooe.
+            lkoookook.
+            .llbbbbll.
             """
         case .puffer:
             return """
-            ..ooo..
-            .ooooo.
-            oooooeo
-            .ooooo.
+            ..koo..
+            .ooook.
+            kooehok
+            .ooook.
             ..bbb..
             """
         case .clown:
             return """
-            ..oowoowoo
-            ffoowooweo
-            ..bbwbbwbb
+            .lowoowool
+            flwoowooeh
+            .lbwbbwbbl
             """
         case .betta:
             return """
             .f..ooooo..
-            ff.oooooeoo
-            ffffoooooo.
+            ff.ooooooo.
+            ffaooooeo..
             ff.ooooooo.
             .f..bbbbb..
             """
         case .goldfish:
             return """
             ..ooooo...
-            ffooooooo.
-            ffoooooeoo
+            ffoooooh..
+            ffooooeho.
             .ffoooooo.
             ..bbbbb...
             """
         case .jelly:
             return """
-            ..bbb..
-            .boooo.
-            booooob
-            .ooooo.
-            ..t.t..
-            ..t.t..
+            ..bbbb..
+            .boooob.
+            bokookob
+            .oooooo.
+            ..t..t..
+            ..a..a..
             """
         }
     }
@@ -437,11 +629,11 @@ ttTttTt.
     static let pufferPuffedArt = """
 ..f...f..
 .ooooooo.
-ooooooooo
-f.ooooeoo
-ooooooooo
+oookookoo
+foooehooo
+oookookoo
 .ooooooo.
-..f...f..
+..b...b..
 """
 
     // MARK: - Cleanup crew
